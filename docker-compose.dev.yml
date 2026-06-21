@@ -1,0 +1,52 @@
+services:
+  web:
+    build:
+      context: .
+      args:
+        REQUIREMENTS_FILE: requirements-dev.txt
+    command: >
+      sh -c "
+      python manage.py migrate &&
+      python manage.py runserver 0.0.0.0:8020
+      "
+    volumes:
+      - ./backend:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    ports:
+      - "${APP_PORT:-8020}:8020"
+    environment:
+      DEBUG: "true"
+
+  celery_worker:
+    build:
+      context: .
+      args:
+        REQUIREMENTS_FILE: requirements-dev.txt
+    volumes:
+      - ./backend:/app
+    environment:
+      DEBUG: "true"
+
+  celery_beat:
+    build:
+      context: .
+      args:
+        REQUIREMENTS_FILE: requirements-dev.txt
+    volumes:
+      - ./backend:/app
+    environment:
+      DEBUG: "true"
+
+  db:
+    ports:
+      - "${DB_PUBLIC_PORT:-5434}:5432"
+
+  tailwind:
+    image: node:20-alpine
+    container_name: sistema_iglesia_tailwind
+    working_dir: /app
+    command: sh -c "npm install && npm run watch:css"
+    volumes:
+      - ./backend:/app
+    restart: "no"

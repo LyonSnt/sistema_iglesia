@@ -1,0 +1,76 @@
+services:
+  web:
+    build: .
+    container_name: sistema_iglesia_web
+    env_file:
+      - ${ENV_FILE:-.env}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: sistema_iglesia_db
+    env_file:
+      - ${ENV_FILE:-.env}
+    environment:
+      POSTGRES_DB: ${DB_NAME:-sistema_iglesia}
+      POSTGRES_USER: ${DB_USER:-sistema_iglesia_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change-me}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: sistema_iglesia_redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  celery_worker:
+    build: .
+    container_name: sistema_iglesia_celery_worker
+    command: celery -A config worker -l info
+    env_file:
+      - ${ENV_FILE:-.env}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - media_volume:/app/media
+    restart: unless-stopped
+
+  celery_beat:
+    build: .
+    container_name: sistema_iglesia_celery_beat
+    command: celery -A config beat -l info
+    env_file:
+      - ${ENV_FILE:-.env}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:

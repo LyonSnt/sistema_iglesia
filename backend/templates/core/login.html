@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Ingresar | Ecclesia{% endblock %}
+
+{% block content %}
+  <section class="mx-auto grid min-h-[calc(100vh-3rem)] max-w-5xl items-center gap-8 md:grid-cols-[1fr_24rem]">
+    <div class="space-y-4">
+      <p class="text-sm font-medium uppercase tracking-wide text-slate-500">Ecclesia</p>
+      <h1 class="text-4xl font-semibold text-slate-950">Sistema nacional de gestion eclesial</h1>
+      <p class="max-w-2xl text-base leading-7 text-slate-600">
+        Acceso centralizado para la iglesia nacional y sus filiales, con permisos por rol y alcance por iglesia.
+      </p>
+    </div>
+
+    <form class="rounded border border-slate-200 bg-white p-6 shadow-sm" method="post">
+      {% csrf_token %}
+      <div class="space-y-1">
+        <h2 class="text-xl font-semibold text-slate-950">Iniciar sesion</h2>
+        <p class="text-sm text-slate-600">Usa tu cuenta asignada para continuar.</p>
+      </div>
+
+      {% if form.non_field_errors %}
+        <div class="mt-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {{ form.non_field_errors|striptags }}
+        </div>
+      {% endif %}
+
+      <div class="mt-5 space-y-4">
+        <label class="block">
+          <span class="text-sm font-medium text-slate-700">Usuario</span>
+          <input
+            class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            type="text"
+            name="{{ form.username.html_name }}"
+            value="{{ form.username.value|default_if_none:'' }}"
+            autocomplete="username"
+            required
+            autofocus
+          >
+          {% if form.username.errors %}
+            <span class="mt-1 block text-sm text-red-700">{{ form.username.errors|striptags }}</span>
+          {% endif %}
+        </label>
+
+        <label class="block">
+          <span class="text-sm font-medium text-slate-700">Contrasena</span>
+          <input
+            class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            type="password"
+            name="{{ form.password.html_name }}"
+            autocomplete="current-password"
+            required
+          >
+          {% if form.password.errors %}
+            <span class="mt-1 block text-sm text-red-700">{{ form.password.errors|striptags }}</span>
+          {% endif %}
+        </label>
+      </div>
+
+      <input type="hidden" name="next" value="{{ next }}">
+
+      <button class="mt-6 w-full rounded bg-slate-950 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800" type="submit">
+        Entrar
+      </button>
+    </form>
+  </section>
+{% endblock %}
