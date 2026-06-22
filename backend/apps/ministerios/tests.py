@@ -49,11 +49,14 @@ class MinisterioViewsTests(TestCase):
             cedula="0303030303",
             sexo=Miembro.Sexo.MASCULINO,
         )
+        self.lider = self.crear_usuario("lider", Usuario.Rol.LIDER_MINISTERIO, self.filial)
+        self.otro_lider = self.crear_usuario("otro_lider", Usuario.Rol.LIDER_MINISTERIO, self.filial)
         self.ministerio = Ministerio.objects.create(
             iglesia=self.filial,
             nombre="Alabanza",
             tipo=Ministerio.Tipo.MINISTERIO,
             responsable=self.miembro,
+            lider=self.lider,
         )
         self.ministerio_otra = Ministerio.objects.create(
             iglesia=self.otra_filial,
@@ -83,6 +86,7 @@ class MinisterioViewsTests(TestCase):
             "tipo": Ministerio.Tipo.MINISTERIO,
             "descripcion": "",
             "responsable": self.miembro.pk,
+            "lider": self.lider.pk,
             "activo": "on",
         }
         data.update(overrides)
@@ -97,14 +101,13 @@ class MinisterioViewsTests(TestCase):
         self.assertContains(response, "Alabanza")
         self.assertNotContains(response, "Jovenes")
 
-    def test_usuario_nacional_ve_todos_los_ministerios(self):
+    def test_usuario_nacional_no_accede_modulo_operativo_de_ministerios(self):
         usuario = self.crear_usuario("auditor", Usuario.Rol.AUDITOR_NACIONAL, self.nacional)
         self.client.force_login(usuario)
 
         response = self.client.get(reverse("ministerios:list"))
 
-        self.assertContains(response, "Alabanza")
-        self.assertContains(response, "Jovenes")
+        self.assertEqual(response.status_code, 403)
 
     def test_detalle_respeta_alcance_por_iglesia(self):
         usuario = self.crear_usuario("pastor", Usuario.Rol.PASTOR_FILIAL, self.filial)
@@ -141,7 +144,9 @@ class MinisterioViewsTests(TestCase):
         self.assertEqual(ministerio.iglesia, self.filial)
 
     def test_no_permite_responsable_de_otra_iglesia(self):
-        usuario = self.crear_usuario("admin", Usuario.Rol.ADMIN_NACIONAL, self.nacional)
+        usuario = self.crear_usuario("superadmin", Usuario.Rol.SUPERADMIN, self.nacional)
+        usuario.is_superuser = True
+        usuario.save(update_fields=["is_superuser"])
         self.client.force_login(usuario)
 
         response = self.client.post(
@@ -237,3 +242,45 @@ class MinisterioViewsTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 404)
+
+    def test_lider_solo_ve_ministerio_asignado(self):
+        Ministerio.objects.create(
+            iglesia=self.filial,
+            nombre="Evangelismo",
+            tipo=Ministerio.Tipo.MINISTERIO,
+            responsable=self.otro_miembro,
+            lider=self.otro_lider,
+        )
+        self.client.force_login(self.lider)
+
+        response = self.client.get(reverse("ministerios:list"))
+
+        self.assertContains(response, "Alabanza")
+        self.assertNotContains(response, "Evangelismo")
+
+    def test_lider_no_puede_crear_ni_editar_ministerio(self):
+        self.client.force_login(self.lider)
+
+        crear = self.client.get(reverse("ministerios:create"))
+        editar = self.client.get(reverse("ministerios:update", args=[self.ministerio.pk]))
+
+        self.assertEqual(crear.status_code, 403)
+        self.assertEqual(editar.status_code, 403)
+
+    def test_lider_puede_agregar_participante_a_ministerio_asignado(self):
+        self.client.force_login(self.lider)
+
+        response = self.client.post(
+            reverse("ministerios:participacion_add", args=[self.ministerio.pk]),
+            {
+                "miembro": self.miembro.pk,
+                "cargo": "Voz",
+                "fecha_inicio": "2026-02-01",
+                "fecha_fin": "",
+                "estado": ParticipacionMinisterio.Estado.ACTIVO,
+                "motivo_salida": "",
+                "activo": "on",
+            },
+        )
+
+        self.assertRedirects(response, reverse("ministerios:detail", args=[self.ministerio.pk]))

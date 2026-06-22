@@ -5,6 +5,7 @@ from apps.cargos.models import AsignacionCargo, Cargo
 from apps.familias.models import Familia, Matrimonio, MiembroFamilia
 from apps.iglesias.models import Iglesia
 from apps.miembros.models import Miembro
+from apps.ministerios.models import Ministerio, ParticipacionMinisterio
 from apps.usuarios.models import Usuario
 
 
@@ -108,16 +109,13 @@ class ApiConsultaMiembrosFamiliasTests(APITestCase):
         self.assertIn(self.miembro.id, ids)
         self.assertNotIn(self.miembro_otra.id, ids)
 
-    def test_usuario_nacional_ve_miembros_de_todas_las_iglesias(self):
+    def test_usuario_nacional_no_accede_api_operativa_de_miembros(self):
         usuario = self.crear_usuario("auditor", Usuario.Rol.AUDITOR_NACIONAL, self.nacional)
         self.client.force_authenticate(usuario)
 
         response = self.client.get(reverse("api:miembro-list"))
 
-        self.assertEqual(response.status_code, 200)
-        ids = {item["id"] for item in response.data}
-        self.assertIn(self.miembro.id, ids)
-        self.assertIn(self.miembro_otra.id, ids)
+        self.assertEqual(response.status_code, 403)
 
     def test_detalle_de_miembro_de_otra_iglesia_responde_404_para_filial(self):
         usuario = self.crear_usuario("secretario", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
@@ -234,16 +232,13 @@ class ApiConsultaCargosTests(APITestCase):
         self.assertIn("Pastor", nombres)
         self.assertNotIn("Presidente", nombres)
 
-    def test_lista_cargos_nacional_incluye_cargos_nacionales(self):
+    def test_usuario_nacional_no_accede_api_operativa_de_cargos(self):
         usuario = self.crear_usuario("auditor", Usuario.Rol.AUDITOR_NACIONAL, self.nacional)
         self.client.force_authenticate(usuario)
 
         response = self.client.get(reverse("api:cargo-list"))
 
-        self.assertEqual(response.status_code, 200)
-        nombres = {item["nombre"] for item in response.data}
-        self.assertIn("Pastor", nombres)
-        self.assertIn("Presidente", nombres)
+        self.assertEqual(response.status_code, 403)
 
     def test_asignaciones_respeta_alcance_por_iglesia(self):
         usuario = self.crear_usuario("secretario", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
@@ -256,16 +251,13 @@ class ApiConsultaCargosTests(APITestCase):
         self.assertIn(self.asignacion.id, ids)
         self.assertNotIn(self.asignacion_otra.id, ids)
 
-    def test_asignaciones_nacional_ve_todas(self):
+    def test_usuario_nacional_no_accede_api_de_asignaciones(self):
         usuario = self.crear_usuario("auditor", Usuario.Rol.AUDITOR_NACIONAL, self.nacional)
         self.client.force_authenticate(usuario)
 
         response = self.client.get(reverse("api:asignacion-cargo-list"))
 
-        self.assertEqual(response.status_code, 200)
-        ids = {item["id"] for item in response.data}
-        self.assertIn(self.asignacion.id, ids)
-        self.assertIn(self.asignacion_otra.id, ids)
+        self.assertEqual(response.status_code, 403)
 
     def test_busqueda_asignaciones(self):
         usuario = self.crear_usuario("secretario", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
@@ -292,3 +284,166 @@ class ApiConsultaCargosTests(APITestCase):
         response = self.client.get(reverse("api:asignacion-cargo-list"))
 
         self.assertEqual(response.status_code, 403)
+
+
+class ApiConsultaMinisteriosTests(APITestCase):
+    def setUp(self):
+        self.nacional = Iglesia.objects.create(
+            codigo="NACIONAL",
+            nombre="Iglesia Nacional",
+            tipo=Iglesia.Tipo.NACIONAL,
+        )
+        self.filial = Iglesia.objects.create(
+            codigo="PRUEBAS",
+            nombre="Iglesia Filial Pruebas",
+            tipo=Iglesia.Tipo.FILIAL,
+            iglesia_matriz=self.nacional,
+        )
+        self.otra_filial = Iglesia.objects.create(
+            codigo="OTRA",
+            nombre="Otra Iglesia",
+            tipo=Iglesia.Tipo.FILIAL,
+            iglesia_matriz=self.nacional,
+        )
+        self.miembro = Miembro.objects.create(
+            iglesia=self.filial,
+            nombres="Ana Maria",
+            apellidos="Lopez",
+            cedula="0101010101",
+            sexo=Miembro.Sexo.FEMENINO,
+        )
+        self.miembro_otra = Miembro.objects.create(
+            iglesia=self.otra_filial,
+            nombres="Carlos",
+            apellidos="Mora",
+            cedula="0202020202",
+            sexo=Miembro.Sexo.MASCULINO,
+        )
+        self.lider = self.crear_usuario("lider_api", Usuario.Rol.LIDER_MINISTERIO, self.filial)
+        self.otro_lider = self.crear_usuario("otro_lider_api", Usuario.Rol.LIDER_MINISTERIO, self.filial)
+        self.ministerio = Ministerio.objects.create(
+            iglesia=self.filial,
+            nombre="Ministerio de Alabanza",
+            tipo=Ministerio.Tipo.MINISTERIO,
+            responsable=self.miembro,
+            lider=self.lider,
+        )
+        self.ministerio_otra = Ministerio.objects.create(
+            iglesia=self.otra_filial,
+            nombre="Ministerio Infantil",
+            tipo=Ministerio.Tipo.MINISTERIO,
+            responsable=self.miembro_otra,
+        )
+        self.participacion = ParticipacionMinisterio.objects.create(
+            ministerio=self.ministerio,
+            miembro=self.miembro,
+            cargo="Voz",
+            fecha_inicio="2026-01-01",
+        )
+        self.participacion_otra = ParticipacionMinisterio.objects.create(
+            ministerio=self.ministerio_otra,
+            miembro=self.miembro_otra,
+            cargo="Maestro",
+            fecha_inicio="2026-01-01",
+        )
+
+    def crear_usuario(self, username, rol, iglesia):
+        return Usuario.objects.create_user(
+            username=username,
+            password="Cambiar12345!",
+            rol=rol,
+            iglesia=iglesia,
+        )
+
+    def test_filial_solo_ve_ministerios_de_su_iglesia(self):
+        usuario = self.crear_usuario("pastor", Usuario.Rol.PASTOR_FILIAL, self.filial)
+        self.client.force_authenticate(usuario)
+
+        response = self.client.get(reverse("api:ministerio-list"))
+
+        self.assertEqual(response.status_code, 200)
+        ids = {item["id"] for item in response.data}
+        self.assertIn(self.ministerio.id, ids)
+        self.assertNotIn(self.ministerio_otra.id, ids)
+        self.assertEqual(response.data[0]["participaciones"][0]["id"], self.participacion.id)
+
+    def test_usuario_nacional_no_accede_api_operativa_de_ministerios(self):
+        usuario = self.crear_usuario("auditor", Usuario.Rol.AUDITOR_NACIONAL, self.nacional)
+        self.client.force_authenticate(usuario)
+
+        response = self.client.get(reverse("api:ministerio-list"))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_busqueda_y_filtro_por_tipo(self):
+        usuario = self.crear_usuario("pastor", Usuario.Rol.PASTOR_FILIAL, self.filial)
+        self.client.force_authenticate(usuario)
+
+        response = self.client.get(
+            reverse("api:ministerio-list"),
+            {"q": "Alabanza", "tipo": Ministerio.Tipo.MINISTERIO},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["id"], self.ministerio.id)
+
+    def test_detalle_de_otra_iglesia_responde_404_para_filial(self):
+        usuario = self.crear_usuario("pastor", Usuario.Rol.PASTOR_FILIAL, self.filial)
+        self.client.force_authenticate(usuario)
+
+        response = self.client.get(reverse("api:ministerio-detail", args=[self.ministerio_otra.pk]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_participaciones_respetan_iglesia_y_filtros(self):
+        usuario = self.crear_usuario("pastor", Usuario.Rol.PASTOR_FILIAL, self.filial)
+        self.client.force_authenticate(usuario)
+
+        response = self.client.get(
+            reverse("api:participacion-ministerio-list"),
+            {
+                "ministerio": self.ministerio.pk,
+                "miembro": self.miembro.pk,
+                "estado": ParticipacionMinisterio.Estado.ACTIVO,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["id"], self.participacion.id)
+        self.assertEqual(response.data[0]["ministerio"], self.ministerio.id)
+        self.assertEqual(response.data[0]["ministerio_nombre"], self.ministerio.nombre)
+
+    def test_detalle_de_participacion_de_otra_iglesia_responde_404(self):
+        usuario = self.crear_usuario("pastor", Usuario.Rol.PASTOR_FILIAL, self.filial)
+        self.client.force_authenticate(usuario)
+
+        response = self.client.get(
+            reverse("api:participacion-ministerio-detail", args=[self.participacion_otra.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_rol_sin_permiso_de_ministerios_recibe_403(self):
+        usuario = self.crear_usuario("tesorero", Usuario.Rol.TESORERO_FILIAL, self.filial)
+        self.client.force_authenticate(usuario)
+
+        response = self.client.get(reverse("api:ministerio-list"))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_lider_solo_consulta_ministerio_asignado_en_api(self):
+        Ministerio.objects.create(
+            iglesia=self.filial,
+            nombre="Ministerio no asignado",
+            tipo=Ministerio.Tipo.MINISTERIO,
+            responsable=self.miembro,
+            lider=self.otro_lider,
+        )
+        self.client.force_authenticate(self.lider)
+
+        response = self.client.get(reverse("api:ministerio-list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item["id"] for item in response.data], [self.ministerio.id])

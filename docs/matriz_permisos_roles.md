@@ -20,8 +20,13 @@
 ## Principios
 
 - Los roles definen alcance general.
+- Cada usuario tiene un rol administrativo principal.
+- Las funciones adicionales se conceden mediante asignaciones concretas, por
+  ejemplo liderar un ministerio o impartir una clase.
 - Los permisos granulares definen acciones concretas.
-- El rol nacional no significa acceso ilimitado.
+- Ningun rol nacional tiene acceso a modulos operativos de las filiales.
+- `ADMIN_NACIONAL` crea filiales y sus autoridades iniciales, sin administrar
+  la operacion cotidiana.
 - El filtro por iglesia se aplica incluso cuando hay permisos de lectura.
 - `SUPERADMIN` es para administracion tecnica y tiene acceso global.
 - Los grupos Django se llaman igual que cada valor de `Usuario.Rol`.
@@ -30,13 +35,13 @@
 
 | Rol | Alcance | Notas |
 | --- | --- | --- |
-| SUPERADMIN | Global | Uso tecnico y administracion total |
-| ADMIN_NACIONAL | Nacional | Gestion general segun permisos |
+| SUPERADMIN | Global | Unico rol con administracion tecnica total |
+| ADMIN_NACIONAL | Nacional | Alta de filiales, autoridades iniciales y reportes |
 | PRESIDENTE_NACIONAL | Nacional | Consulta directiva y reportes |
 | VICEPRESIDENTE_NACIONAL | Nacional | Consulta directiva y reportes |
-| SECRETARIO_NACIONAL | Nacional | Gestion documental y membresia consolidada |
-| AUDITOR_NACIONAL | Nacional | Lectura y auditoria |
-| TESORERO_NACIONAL | Nacional | Aportes y recibos nacionales |
+| SECRETARIO_NACIONAL | Nacional | Reportes de su competencia |
+| AUDITOR_NACIONAL | Nacional | Reportes y registros de auditoria |
+| TESORERO_NACIONAL | Nacional | Reportes financieros consolidados |
 | PASTOR_FILIAL | Filial | Gestion pastoral de su iglesia |
 | ENCARGADO_FILIAL | Filial | Gestion operativa de su iglesia |
 | SECRETARIO_FILIAL | Filial | Miembros, familias, documentos |
@@ -53,19 +58,13 @@ permisos base por accion:
 | Rol | Permisos Django base |
 | --- | --- |
 | `SUPERADMIN` | Todos |
-| `ADMIN_NACIONAL` | Todos |
-| `PRESIDENTE_NACIONAL` | Ver |
-| `VICEPRESIDENTE_NACIONAL` | Ver |
-| `SECRETARIO_NACIONAL` | Ver, crear, editar |
-| `TESORERO_NACIONAL` | Ver, crear, editar |
-| `AUDITOR_NACIONAL` | Ver |
-| `PASTOR_FILIAL` | Ver, crear, editar |
-| `ENCARGADO_FILIAL` | Ver, crear, editar |
-| `SECRETARIO_FILIAL` | Ver, crear, editar |
-| `TESORERO_FILIAL` | Ver, crear, editar |
-| `LIDER_MINISTERIO` | Ver |
-| `MAESTRO` | Ver |
-| `SOLO_LECTURA` | Ver |
+| `ADMIN_NACIONAL` | Iglesias/zonas limitadas y consulta de auditoria |
+| `PRESIDENTE_NACIONAL` | Ver auditoria |
+| `VICEPRESIDENTE_NACIONAL` | Ver auditoria |
+| `SECRETARIO_NACIONAL` | Sin permisos de Django Admin |
+| `TESORERO_NACIONAL` | Sin permisos de Django Admin |
+| `AUDITOR_NACIONAL` | Ver auditoria |
+| Roles filiales | Sin acceso a Django Admin; usan vistas funcionales |
 
 Estos permisos son una base tecnica. Las reglas funcionales por modulo deben
 validarse en vistas, servicios y admin junto con el alcance por iglesia.
@@ -74,20 +73,20 @@ validarse en vistas, servicios y admin junto con el alcance por iglesia.
 
 | Modulo | Roles con gestion | Roles con lectura/auditoria | Alcance |
 | --- | --- | --- | --- |
-| Iglesias y zonas | `SUPERADMIN`, `ADMIN_NACIONAL`, `SECRETARIO_NACIONAL` | `PRESIDENTE_NACIONAL`, `VICEPRESIDENTE_NACIONAL`, `AUDITOR_NACIONAL`, `SOLO_LECTURA` | Global/nacional |
-| Usuarios y roles | `SUPERADMIN`, `ADMIN_NACIONAL` | `AUDITOR_NACIONAL` | Global/nacional |
-| Parametros generales | `SUPERADMIN`, `ADMIN_NACIONAL` | `AUDITOR_NACIONAL` | Global |
-| Miembros y familias | `SUPERADMIN`, `ADMIN_NACIONAL`, `SECRETARIO_NACIONAL`, `PASTOR_FILIAL`, `ENCARGADO_FILIAL`, `SECRETARIO_FILIAL` | `AUDITOR_NACIONAL`, `SOLO_LECTURA` | Nacional ve consolidado; filial solo su iglesia |
-| Cargos y directivas | `SUPERADMIN`, `ADMIN_NACIONAL`, `SECRETARIO_NACIONAL`, `PASTOR_FILIAL`, `ENCARGADO_FILIAL`, `SECRETARIO_FILIAL` | `AUDITOR_NACIONAL`, `SOLO_LECTURA` | Nacional o filial segun cargo |
-| Ministerios | `SUPERADMIN`, `ADMIN_NACIONAL`, `PASTOR_FILIAL`, `ENCARGADO_FILIAL`, `LIDER_MINISTERIO` | `AUDITOR_NACIONAL`, `SOLO_LECTURA` | Filial; lider solo ministerios asignados |
-| Asistencia y Escuela Dominical | `SUPERADMIN`, `ADMIN_NACIONAL`, `PASTOR_FILIAL`, `ENCARGADO_FILIAL`, `MAESTRO` | `AUDITOR_NACIONAL`, `SOLO_LECTURA` | Filial; maestro segun clase/asignacion futura |
-| Finanzas locales | `SUPERADMIN`, `ADMIN_NACIONAL`, `TESORERO_NACIONAL`, `TESORERO_FILIAL` | `AUDITOR_NACIONAL`, `PASTOR_FILIAL` | Filial; nacional consolida/audita |
-| Aportes nacionales | `SUPERADMIN`, `ADMIN_NACIONAL`, `TESORERO_NACIONAL` | `AUDITOR_NACIONAL`, `TESORERO_FILIAL`, `PASTOR_FILIAL` | Nacional con consulta filial |
-| Certificados y documentos | `SUPERADMIN`, `ADMIN_NACIONAL`, `SECRETARIO_NACIONAL`, `SECRETARIO_FILIAL` | `AUDITOR_NACIONAL`, `PASTOR_FILIAL`, `SOLO_LECTURA` | Filial; nacional consulta y audita |
-| Traslados | `SUPERADMIN`, `ADMIN_NACIONAL`, `SECRETARIO_NACIONAL`, `PASTOR_FILIAL`, `SECRETARIO_FILIAL` | `AUDITOR_NACIONAL` | Entre iglesias con auditoria |
-| Inventario | `SUPERADMIN`, `ADMIN_NACIONAL`, `TESORERO_FILIAL`, `ENCARGADO_FILIAL` | `AUDITOR_NACIONAL`, `PASTOR_FILIAL`, `SOLO_LECTURA` | Filial |
-| Reportes | `SUPERADMIN`, `ADMIN_NACIONAL` | Roles nacionales y filiales segun modulo | Mismo alcance del dato reportado |
-| Auditoria | `SUPERADMIN`, `ADMIN_NACIONAL`, `AUDITOR_NACIONAL` | `PRESIDENTE_NACIONAL`, `VICEPRESIDENTE_NACIONAL` | Global/nacional |
+| Iglesias y zonas | `SUPERADMIN`, `ADMIN_NACIONAL` | - | Nacional crea y mantiene filiales |
+| Usuarios y roles | `SUPERADMIN`, `ADMIN_NACIONAL` crean autoridades filiales; `PASTOR_FILIAL`, `ENCARGADO_FILIAL` crean cuentas locales delegables | - | Nacional administra el arranque; filial administra su equipo local |
+| Parametros generales | `SUPERADMIN` | - | Tecnico/global |
+| Miembros y familias | `SUPERADMIN`, `PASTOR_FILIAL`, `ENCARGADO_FILIAL`, `SECRETARIO_FILIAL` | `SOLO_LECTURA` | Filial solo su iglesia; Nacional consulta mediante reportes |
+| Cargos y directivas | `SUPERADMIN`, `PASTOR_FILIAL`, `ENCARGADO_FILIAL`, `SECRETARIO_FILIAL` | `SOLO_LECTURA` | Filial solo su iglesia; Nacional consulta mediante reportes |
+| Ministerios | `SUPERADMIN`, `PASTOR_FILIAL`, `ENCARGADO_FILIAL`; asignados operan participantes | `SOLO_LECTURA` | Filial; usuario asignado solo su ministerio |
+| Asistencia y Escuela Dominical | `SUPERADMIN`, `PASTOR_FILIAL`, `ENCARGADO_FILIAL`; asignados operan clases | `SOLO_LECTURA` | Filial; usuario asignado solo su clase |
+| Finanzas locales | `SUPERADMIN`, `TESORERO_FILIAL` | `PASTOR_FILIAL` | Filial; Nacional consulta mediante reportes |
+| Aportes nacionales | `SUPERADMIN` | `TESORERO_FILIAL`, `PASTOR_FILIAL` | Operacion filial; consolidado en reportes |
+| Certificados y documentos | `SUPERADMIN`, `SECRETARIO_FILIAL` | `PASTOR_FILIAL`, `SOLO_LECTURA` | Filial; Nacional consulta mediante reportes |
+| Traslados | `SUPERADMIN`, `PASTOR_FILIAL`, `SECRETARIO_FILIAL` | - | Entre iglesias con auditoria |
+| Inventario | `SUPERADMIN`, `TESORERO_FILIAL`, `ENCARGADO_FILIAL` | `PASTOR_FILIAL`, `SOLO_LECTURA` | Filial |
+| Reportes | `SUPERADMIN` | Todos los roles segun reporte | Nacional obtiene supervision consolidada aqui |
+| Auditoria | `SUPERADMIN`, `AUDITOR_NACIONAL` | `ADMIN_NACIONAL`, `PRESIDENTE_NACIONAL`, `VICEPRESIDENTE_NACIONAL` | Supervision nacional sin operacion local |
 
 ## Comando de Normalizacion Tecnica
 
@@ -104,5 +103,26 @@ El comando asigna rol `SUPERADMIN`, grupo `SUPERADMIN`, iglesia `NACIONAL`,
 ## Pendiente Funcional
 
 - Usar los helpers/decoradores de `apps.core.permisos` en las proximas vistas.
-- Ajustar permisos finos por objeto cuando existan asignaciones de ministerio,
-  clases de Escuela Dominical y flujos de traslados.
+- Ajustar permisos finos por objeto en los futuros flujos de traslados.
+
+## Intervencion Nacional
+
+- Los usuarios nacionales consultan informacion consolidada mediante reportes,
+  no entrando a modulos operativos.
+- Solo `SUPERADMIN` puede intervenir tecnicamente sobre datos operativos.
+- Toda creacion o modificacion autorizada de Nacional sobre una filial genera un
+  `RegistroAuditoria` automatico con usuario, IP y valores anterior/nuevo.
+- La operacion cotidiana corresponde a los roles de la propia filial.
+
+## Delegacion de Usuarios
+
+- Nacional crea la filial junto con su primer `PASTOR_FILIAL` o
+  `ENCARGADO_FILIAL`.
+- Pastor y encargado pueden crear, editar, desactivar y restablecer contrasenas
+  de `SECRETARIO_FILIAL`, `TESORERO_FILIAL`, `LIDER_MINISTERIO`, `MAESTRO` y
+  `SOLO_LECTURA` de su propia iglesia.
+- Una autoridad filial no puede crear otra autoridad, asignar roles nacionales,
+  mover usuarios entre iglesias ni crear superusuarios.
+- Las cuentas no se eliminan; se desactivan para conservar historial.
+- Toda administracion de cuentas locales queda auditada sin almacenar hashes de
+  contrasena.

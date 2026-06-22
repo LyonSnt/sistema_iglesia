@@ -1,4 +1,4 @@
-from django.contrib.auth.views import LoginView
+from django.contrib.auth.views import LoginView, PasswordChangeView
 from django.urls import reverse
 from django.views.generic import TemplateView
 
@@ -29,6 +29,19 @@ class EcclesiaLoginView(LoginView):
     redirect_authenticated_user = True
 
 
+class CambiarPasswordObligatorioView(PasswordChangeView):
+    template_name = "core/password_change.html"
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        self.request.user.debe_cambiar_password = False
+        self.request.user.save(update_fields=["debe_cambiar_password"])
+        return response
+
+    def get_success_url(self):
+        return reverse("core:dashboard")
+
+
 class DashboardView(PermisoModuloMixin, TemplateView):
     template_name = "core/dashboard.html"
     modulo_permiso = MODULO_REPORTES
@@ -57,6 +70,7 @@ class DashboardView(PermisoModuloMixin, TemplateView):
             "codigo": MODULO_ESCUELA_DOMINICAL,
             "nombre": "Escuela Dominical",
             "descripcion": "Clases, asistencia y promociones.",
+            "url_name": "escuela_dominical:list",
         },
         {
             "codigo": MODULO_FINANZAS,
@@ -72,6 +86,7 @@ class DashboardView(PermisoModuloMixin, TemplateView):
             "codigo": MODULO_CERTIFICADOS,
             "nombre": "Certificados",
             "descripcion": "Documentos, numeracion y control.",
+            "url_name": "certificados:list",
         },
         {
             "codigo": MODULO_TRASLADOS,
@@ -87,11 +102,13 @@ class DashboardView(PermisoModuloMixin, TemplateView):
             "codigo": MODULO_IGLESIAS,
             "nombre": "Iglesias y zonas",
             "descripcion": "Estructura nacional y filiales.",
+            "url_name": "iglesias:list",
         },
         {
             "codigo": MODULO_USUARIOS,
             "nombre": "Usuarios y roles",
             "descripcion": "Cuentas, perfiles y acceso.",
+            "url_name": "usuarios:list",
         },
         {
             "codigo": MODULO_PARAMETROS,

@@ -1,19 +1,20 @@
 from django.db.models import Q
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
-from apps.core.iglesias import filtrar_queryset_por_iglesia
 from apps.core.permisos import ACCION_GESTIONAR, ACCION_VER, MODULO_MINISTERIOS, PermisoModuloMixin, usuario_puede
 
+from .alcance import filtrar_ministerios_por_usuario, usuario_administra_ministerios
 from .forms import FinalizarParticipacionMinisterioForm, MinisterioForm, ParticipacionMinisterioForm
 from .models import Ministerio, ParticipacionMinisterio
 
 
 class MinisterioQuerysetMixin:
     def get_queryset(self):
-        queryset = Ministerio.objects.select_related("iglesia", "responsable")
-        return filtrar_queryset_por_iglesia(queryset, self.request.user)
+        queryset = Ministerio.objects.select_related("iglesia", "responsable", "lider")
+        return filtrar_ministerios_por_usuario(queryset, self.request.user)
 
 
 class MinisterioListView(PermisoModuloMixin, ListView):
@@ -25,8 +26,8 @@ class MinisterioListView(PermisoModuloMixin, ListView):
     accion_permiso = ACCION_VER
 
     def get_queryset(self):
-        queryset = Ministerio.objects.select_related("iglesia", "responsable")
-        queryset = filtrar_queryset_por_iglesia(queryset, self.request.user)
+        queryset = Ministerio.objects.select_related("iglesia", "responsable", "lider")
+        queryset = filtrar_ministerios_por_usuario(queryset, self.request.user)
 
         query = self.request.GET.get("q", "").strip()
         if query:
@@ -47,7 +48,9 @@ class MinisterioListView(PermisoModuloMixin, ListView):
         context["q"] = self.request.GET.get("q", "").strip()
         context["tipo"] = self.request.GET.get("tipo", "").strip()
         context["tipos"] = Ministerio.Tipo.choices
-        context["puede_gestionar"] = usuario_puede(self.request.user, MODULO_MINISTERIOS, ACCION_GESTIONAR)
+        context["puede_gestionar"] = usuario_puede(
+            self.request.user, MODULO_MINISTERIOS, ACCION_GESTIONAR
+        ) and usuario_administra_ministerios(self.request.user)
         return context
 
 
@@ -65,6 +68,9 @@ class MinisterioDetailView(MinisterioQuerysetMixin, PermisoModuloMixin, DetailVi
             "-fecha_inicio",
         )
         context["puede_gestionar"] = usuario_puede(self.request.user, MODULO_MINISTERIOS, ACCION_GESTIONAR)
+        context["puede_administrar"] = context["puede_gestionar"] and usuario_administra_ministerios(
+            self.request.user
+        )
         return context
 
 
@@ -83,11 +89,17 @@ class MinisterioFormMixin(MinisterioQuerysetMixin, PermisoModuloMixin):
 
 
 class MinisterioCreateView(MinisterioFormMixin, CreateView):
-    pass
+    def dispatch(self, request, *args, **kwargs):
+        if not usuario_administra_ministerios(request.user):
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
 
 
 class MinisterioUpdateView(MinisterioFormMixin, UpdateView):
-    pass
+    def dispatch(self, request, *args, **kwargs):
+        if not usuario_administra_ministerios(request.user):
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
 
 
 class ParticipacionMinisterioActionMixin(MinisterioQuerysetMixin, PermisoModuloMixin):

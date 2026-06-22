@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 
 from apps.core.models import ActiveModel, IglesiaScopedModel, TimeStampedModel
 
@@ -14,6 +15,13 @@ class Ministerio(TimeStampedModel, ActiveModel, IglesiaScopedModel):
     tipo = models.CharField(max_length=20, choices=Tipo.choices, default=Tipo.MINISTERIO)
     descripcion = models.TextField(blank=True)
     responsable = models.ForeignKey("miembros.Miembro", on_delete=models.PROTECT, null=True, blank=True)
+    lider = models.ForeignKey(
+        "usuarios.Usuario",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="ministerios_liderados",
+    )
 
     class Meta:
         unique_together = ("iglesia", "nombre")
@@ -23,6 +31,16 @@ class Ministerio(TimeStampedModel, ActiveModel, IglesiaScopedModel):
 
     def __str__(self):
         return self.nombre
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.responsable_id and self.iglesia_id and self.responsable.iglesia_id != self.iglesia_id:
+            errors["responsable"] = "El responsable debe pertenecer a la misma iglesia."
+        if self.lider_id and self.iglesia_id and self.lider.iglesia_id != self.iglesia_id:
+            errors["lider"] = "El lider debe pertenecer a la misma iglesia."
+        if errors:
+            raise ValidationError(errors)
 
 
 class ParticipacionMinisterio(TimeStampedModel, ActiveModel):

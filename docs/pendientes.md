@@ -2,7 +2,7 @@
 
 ## Infraestructura
 
-- Integrar Tailwind compilado con Node en Docker.
+- [x] Integrar Tailwind compilado con Node en Docker.
 - Crear scripts de backup y restore.
 - Preparar Nginx para produccion.
 - Definir estrategia de logs.
@@ -16,10 +16,10 @@
 - [x] Crear comando para normalizar superusuario tecnico.
 - [x] Crear helpers/decoradores de permisos para vistas.
 - [x] Crear login/logout y dashboard inicial minimo.
-- Crear serializers base para API.
 - [x] Crear serializers base y endpoints iniciales de consulta para Miembros,
   Familias y Matrimonios.
-- Crear pruebas iniciales de modelos.
+- [x] Crear API de consulta para Cargos y Ministerios.
+- [x] Crear pruebas iniciales de modelos y flujos funcionales implementados.
 
 ## Modulos
 
@@ -34,9 +34,12 @@
 - Traslados: flujo origen, destino y auditoria nacional.
 - Finanzas: ingresos, egresos y cierre mensual.
 - Aportes nacionales: cuenta corriente filial-nacional.
-- Certificados: numeracion y PDF.
+- Certificados: [x] numeracion, [x] emision individual y por lote,
+  [x] PDF de Escuela Dominical, [x] anulacion; pendiente validar el fondo y
+  logotipo institucional, y desarrollar otros tipos documentales.
 - Inventario: historial de ubicacion, responsable y reparacion.
-- Escuela Dominical: niveles, corte, promocion y certificados.
+- Escuela Dominical: [x] niveles, [x] clases y matriculas, [x] sesiones y
+  asistencia, [x] corte y promocion, [x] certificados por cada nivel y egreso.
 
 ## Documentacion
 

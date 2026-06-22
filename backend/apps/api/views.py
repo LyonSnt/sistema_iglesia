@@ -6,11 +6,27 @@ from rest_framework.views import APIView
 
 from apps.cargos.models import AsignacionCargo, Cargo
 from apps.core.iglesias import filtrar_queryset_por_iglesia
-from apps.core.permisos import ACCION_VER, MODULO_CARGOS, MODULO_MIEMBROS, PermisoModuloDRF
+from apps.core.permisos import (
+    ACCION_VER,
+    MODULO_CARGOS,
+    MODULO_MIEMBROS,
+    MODULO_MINISTERIOS,
+    PermisoModuloDRF,
+)
 from apps.familias.models import Familia, Matrimonio
 from apps.miembros.models import Miembro
+from apps.ministerios.models import Ministerio, ParticipacionMinisterio
+from apps.ministerios.alcance import filtrar_ministerios_por_usuario, filtrar_participaciones_por_usuario
 
-from .serializers import AsignacionCargoSerializer, CargoSerializer, FamiliaSerializer, MatrimonioSerializer, MiembroSerializer
+from .serializers import (
+    AsignacionCargoSerializer,
+    CargoSerializer,
+    FamiliaSerializer,
+    MatrimonioSerializer,
+    MiembroSerializer,
+    MinisterioSerializer,
+    ParticipacionMinisterioSerializer,
+)
 
 
 class HealthCheckAPIView(APIView):
@@ -30,6 +46,12 @@ class ModuloMiembrosAPIMixin:
 class ModuloCargosAPIMixin:
     permission_classes = [PermisoModuloDRF]
     modulo_permiso = MODULO_CARGOS
+    accion_permiso = ACCION_VER
+
+
+class ModuloMinisteriosAPIMixin:
+    permission_classes = [PermisoModuloDRF]
+    modulo_permiso = MODULO_MINISTERIOS
     accion_permiso = ACCION_VER
 
 
@@ -152,3 +174,68 @@ class AsignacionCargoRetrieveAPIView(ModuloCargosAPIMixin, RetrieveAPIView):
     def get_queryset(self):
         queryset = AsignacionCargo.objects.select_related("iglesia", "cargo", "miembro", "usuario")
         return filtrar_queryset_por_iglesia(queryset, self.request.user)
+
+
+class MinisterioListAPIView(ModuloMinisteriosAPIMixin, ListAPIView):
+    serializer_class = MinisterioSerializer
+
+    def get_queryset(self):
+        queryset = Ministerio.objects.select_related("iglesia", "responsable").prefetch_related(
+            "participaciones__miembro"
+        )
+        queryset = filtrar_ministerios_por_usuario(queryset, self.request.user)
+
+        query = self.request.query_params.get("q", "").strip()
+        if query:
+            queryset = queryset.filter(
+                Q(nombre__icontains=query)
+                | Q(descripcion__icontains=query)
+                | Q(responsable__nombres__icontains=query)
+                | Q(responsable__apellidos__icontains=query)
+            )
+
+        tipo = self.request.query_params.get("tipo", "").strip()
+        if tipo:
+            queryset = queryset.filter(tipo=tipo)
+
+        return queryset
+
+
+class MinisterioRetrieveAPIView(ModuloMinisteriosAPIMixin, RetrieveAPIView):
+    serializer_class = MinisterioSerializer
+
+    def get_queryset(self):
+        queryset = Ministerio.objects.select_related("iglesia", "responsable").prefetch_related(
+            "participaciones__miembro"
+        )
+        return filtrar_ministerios_por_usuario(queryset, self.request.user)
+
+
+class ParticipacionMinisterioListAPIView(ModuloMinisteriosAPIMixin, ListAPIView):
+    serializer_class = ParticipacionMinisterioSerializer
+
+    def get_queryset(self):
+        queryset = ParticipacionMinisterio.objects.select_related("ministerio", "miembro")
+        queryset = filtrar_participaciones_por_usuario(queryset, self.request.user)
+
+        ministerio_id = self.request.query_params.get("ministerio", "").strip()
+        if ministerio_id:
+            queryset = queryset.filter(ministerio_id=ministerio_id)
+
+        miembro_id = self.request.query_params.get("miembro", "").strip()
+        if miembro_id:
+            queryset = queryset.filter(miembro_id=miembro_id)
+
+        estado = self.request.query_params.get("estado", "").strip()
+        if estado:
+            queryset = queryset.filter(estado=estado)
+
+        return queryset
+
+
+class ParticipacionMinisterioRetrieveAPIView(ModuloMinisteriosAPIMixin, RetrieveAPIView):
+    serializer_class = ParticipacionMinisterioSerializer
+
+    def get_queryset(self):
+        queryset = ParticipacionMinisterio.objects.select_related("ministerio", "miembro")
+        return filtrar_participaciones_por_usuario(queryset, self.request.user)

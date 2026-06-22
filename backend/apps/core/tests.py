@@ -50,7 +50,7 @@ class PermisosCoreTests(TestCase):
         roles_ver = obtener_roles_permitidos(MODULO_MIEMBROS, ACCION_VER)
 
         self.assertIn(Usuario.Rol.SECRETARIO_FILIAL, roles_ver)
-        self.assertIn(Usuario.Rol.AUDITOR_NACIONAL, roles_ver)
+        self.assertNotIn(Usuario.Rol.AUDITOR_NACIONAL, roles_ver)
 
     def test_usuario_filial_puede_gestionar_modulo_autorizado(self):
         usuario = self.crear_usuario(
@@ -149,7 +149,7 @@ class CoreViewsTests(TestCase):
         self.assertContains(response, "Aportes nacionales")
         self.assertNotContains(response, "Usuarios y roles")
 
-    def test_dashboard_muestra_acceso_admin_a_staff(self):
+    def test_dashboard_no_muestra_admin_tecnico_a_admin_nacional(self):
         usuario = self.crear_usuario(
             "admin_nacional",
             Usuario.Rol.ADMIN_NACIONAL,
@@ -160,4 +160,68 @@ class CoreViewsTests(TestCase):
 
         response = self.client.get(reverse("core:dashboard"))
 
+        self.assertNotContains(response, "Administracion tecnica")
+
+    def test_admin_nacional_solo_ve_filiales_usuarios_reportes_y_auditoria(self):
+        usuario = self.crear_usuario(
+            "admin_nacional_limitado",
+            Usuario.Rol.ADMIN_NACIONAL,
+            self.nacional,
+        )
+        self.client.force_login(usuario)
+
+        response = self.client.get(reverse("core:dashboard"))
+
+        self.assertContains(response, "Iglesias y zonas")
+        self.assertContains(response, "Usuarios y roles")
+        self.assertContains(response, "Reportes")
+        self.assertContains(response, "Auditoria")
+        self.assertNotContains(response, "Miembros y familias")
+        self.assertNotContains(response, "Ministerios")
+        self.assertNotContains(response, "Escuela Dominical")
+        self.assertNotContains(response, "Finanzas locales")
+
+    def test_dashboard_muestra_admin_tecnico_solo_a_superusuario(self):
+        usuario = self.crear_usuario(
+            "superadmin",
+            Usuario.Rol.SUPERADMIN,
+            self.nacional,
+            is_staff=True,
+        )
+        usuario.is_superuser = True
+        usuario.save(update_fields=["is_superuser"])
+        self.client.force_login(usuario)
+
+        response = self.client.get(reverse("core:dashboard"))
+
         self.assertContains(response, "Administracion tecnica")
+
+    def test_password_temporal_obliga_cambio_antes_de_continuar(self):
+        usuario = self.crear_usuario("temporal", Usuario.Rol.PASTOR_FILIAL, self.filial)
+        usuario.debe_cambiar_password = True
+        usuario.save(update_fields=["debe_cambiar_password"])
+        self.client.force_login(usuario)
+
+        response = self.client.get(reverse("core:dashboard"))
+
+        self.assertRedirects(response, reverse("core:password-change"), fetch_redirect_response=False)
+
+    def test_cambio_de_password_habilita_la_cuenta(self):
+        usuario = self.crear_usuario("temporal", Usuario.Rol.PASTOR_FILIAL, self.filial)
+        usuario.debe_cambiar_password = True
+        usuario.save(update_fields=["debe_cambiar_password"])
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("core:password-change"),
+            {
+                "old_password": "Cambiar12345!",
+                "new_password1": "NuevaPersonal987!",
+                "new_password2": "NuevaPersonal987!",
+            },
+        )
+
+        self.assertRedirects(response, reverse("core:dashboard"))
+        usuario.refresh_from_db()
+        self.assertFalse(usuario.debe_cambiar_password)
+        self.assertTrue(usuario.check_password("NuevaPersonal987!"))

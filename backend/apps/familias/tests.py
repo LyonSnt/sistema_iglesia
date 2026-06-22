@@ -88,14 +88,13 @@ class FamiliaViewsTests(TestCase):
         self.assertContains(response, "Familia Lopez")
         self.assertNotContains(response, "Familia Mora")
 
-    def test_usuario_nacional_ve_todas_las_familias(self):
+    def test_usuario_nacional_no_accede_modulo_operativo_de_familias(self):
         usuario = self.crear_usuario("auditor", Usuario.Rol.AUDITOR_NACIONAL, self.nacional)
         self.client.force_login(usuario)
 
         response = self.client.get(reverse("familias:list"))
 
-        self.assertContains(response, "Familia Lopez")
-        self.assertContains(response, "Familia Mora")
+        self.assertEqual(response.status_code, 403)
 
     def test_detalle_respeta_alcance_por_iglesia(self):
         usuario = self.crear_usuario("secretario", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
@@ -139,7 +138,9 @@ class FamiliaViewsTests(TestCase):
         self.assertEqual(familia.iglesia, self.filial)
 
     def test_no_permite_jefe_hogar_de_otra_iglesia(self):
-        usuario = self.crear_usuario("admin", Usuario.Rol.ADMIN_NACIONAL, self.nacional)
+        usuario = self.crear_usuario("superadmin", Usuario.Rol.SUPERADMIN, self.nacional)
+        usuario.is_superuser = True
+        usuario.save(update_fields=["is_superuser"])
         self.client.force_login(usuario)
 
         response = self.client.post(

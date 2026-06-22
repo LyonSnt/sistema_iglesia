@@ -26,9 +26,15 @@ No se usara una base por iglesia filial. La separacion de datos se hara por el c
 - `familias`: familias y relaciones internas.
 - `cargos`: catalogo de cargos e historial de asignaciones.
 - `ministerios`: departamentos, ministerios, equipos, grupos y participaciones.
+- `escuela_dominical`: niveles, clases, matriculas, sesiones, asistencia, cortes
+  y promociones anuales.
+- `certificados`: emision numerada, PDF y anulacion de certificados asociados a
+  promociones confirmadas.
 - `auditoria`: registros de auditoria para acciones importantes.
 - `api`: punto de entrada para endpoints DRF.
-- Apps reservadas: `obreros`, `escuela_dominical`, `asistencia`, `eventos`, `finanzas`, `aportes_nacionales`, `traslados`, `certificados`, `documentos`, `inventario`, `reportes`, `notificaciones`.
+- Apps reservadas: `obreros`, `asistencia`, `eventos`, `finanzas`,
+  `aportes_nacionales`, `traslados`, `documentos`, `inventario`, `reportes` y
+  `notificaciones`.
 
 ## Modelo multi-iglesia
 
@@ -89,5 +95,5 @@ La raiz del repositorio contiene infraestructura y operacion. El backend Django 
 3. Crear flujos de miembros, familias y traslados.
 4. Implementar finanzas locales y aporte nacional con cuenta corriente.
 5. Crear reportes nacionales y filiales.
-6. Agregar generacion PDF de certificados.
+6. Validar el diseno PDF de certificados con los recursos institucionales.
 7. Agregar backups automatizados y perfil de produccion con Nginx/HTTPS.

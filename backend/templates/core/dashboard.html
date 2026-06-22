@@ -48,7 +48,7 @@
       {% endfor %}
     </div>
 
-    {% if request.user.is_staff %}
+    {% if request.user.is_superuser %}
       <div class="rounded border border-slate-200 bg-white p-5">
         <h2 class="font-semibold text-slate-950">Administracion tecnica</h2>
         <p class="mt-2 text-sm text-slate-600">Acceso al admin Django para configuracion y validacion inicial.</p>

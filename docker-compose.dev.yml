@@ -6,6 +6,7 @@ services:
         REQUIREMENTS_FILE: requirements-dev.txt
     command: >
       sh -c "
+      test -f static/css/app.css || cp /opt/ecclesia-assets/app.css static/css/app.css &&
       python manage.py migrate &&
       python manage.py runserver 0.0.0.0:8020
       "

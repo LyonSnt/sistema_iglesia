@@ -18,6 +18,8 @@ Indice de documentos del proyecto Ecclesia.
 - [HTMX](htmx.md)
 - [Tailwind CSS](tailwind.md)
 - [Pendientes](pendientes.md)
+- [Corte y promociones de Escuela Dominical](escuela_dominical_promociones.md)
+- [Certificados de Escuela Dominical](certificados.md)
 
 ## Seguridad y Acceso
 

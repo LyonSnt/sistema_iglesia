@@ -1,0 +1,15 @@
+.git
+.env
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.coverage
+htmlcov
+backend/node_modules
+backend/staticfiles
+backend/media
+backend/celerybeat-schedule
+backups
+*.log

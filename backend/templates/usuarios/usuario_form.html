@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}{% if object %}Editar usuario{% else %}Crear usuario{% endif %} | Ecclesia{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-3xl space-y-6"><div class="flex items-end justify-between border-b pb-6"><div><a class="text-sm font-medium text-slate-500" href="{% url 'usuarios:list' %}">Usuarios</a><h1 class="mt-2 text-3xl font-semibold">{% if object %}Editar usuario{% else %}Crear usuario{% endif %}</h1></div>{% if object %}<a class="rounded border px-4 py-2 text-sm" href="{% url 'usuarios:password-reset' object.pk %}">Restablecer contrasena</a>{% endif %}</div>{% include "usuarios/formulario.html" %}</section>
+{% endblock %}

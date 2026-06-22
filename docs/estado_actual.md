@@ -1,6 +1,6 @@
 # Estado Actual
 
-Ultima actualizacion: 2026-06-21.
+Ultima actualizacion: 2026-06-22.
 
 ## Resumen
 
@@ -18,6 +18,10 @@ solo de esa filial.
 - No se usaran bases por iglesia filial.
 - No se usaran rutas tipo `/pruebas/`.
 - La separacion de datos sera por campo `iglesia`, roles, permisos y filtros obligatorios.
+- `SUPERADMIN` es el unico rol con acceso tecnico total.
+- `ADMIN_NACIONAL` solo gestiona filiales, autoridades iniciales, reportes y
+  consulta de auditoria; no accede a modulos operativos.
+- Los demas roles nacionales consumen reportes y auditoria segun su funcion.
 - `PRUEBAS` sera una iglesia filial de validacion dentro de la misma base.
 - El backend Django vive en `backend/`.
 - Las apps Django viven en `backend/apps/`.
@@ -63,6 +67,10 @@ solo de esa filial.
   - `/api/cargos/`.
   - `/api/asignaciones-cargos/`.
   - `/api/asignaciones-cargos/<id>/`.
+  - `/api/ministerios/`.
+  - `/api/ministerios/<id>/`.
+  - `/api/participaciones-ministerios/`.
+  - `/api/participaciones-ministerios/<id>/`.
 - Modulo Cargos/directivas iniciado:
   - listado en `/cargos/`;
   - detalle de asignacion;
@@ -73,14 +81,44 @@ solo de esa filial.
   - detalle de ministerio;
   - creacion y edicion;
   - agregado y finalizacion de participaciones.
+- Modulo Escuela Dominical iniciado:
+  - listado de clases en `/escuela-dominical/`;
+  - detalle, creacion y edicion de clases;
+  - niveles por iglesia con rangos de edad;
+  - clases por periodo, nivel, maestro, aula, horario y cupo;
+  - matricula y edicion de alumnos por clase;
+  - sesiones por clase y fecha;
+  - toma masiva de asistencia con estados presente, ausente y justificado;
+  - cierre de sesiones y correccion reservada a autoridades;
+  - corte anual en una fecha exacta de enero;
+  - promocion por edad con asistencia informativa;
+  - revision y confirmacion por pastor o encargado;
+  - matricula automatica en el nivel siguiente y egreso a Jovenes a los 18 anos.
+- Modulo Certificados iniciado:
+  - listado funcional en `/certificados/`;
+  - certificados para cada cambio de nivel y egreso a Jovenes;
+  - emision individual o por lote desde promociones confirmadas;
+  - numeracion transaccional unica;
+  - PDF A4 horizontal con datos de alumno, nivel, periodo y firmantes;
+  - firmas historicas de Pastor y Director de Escuela Dominical;
+  - anulacion sin borrado ni reutilizacion del numero.
 - HTMX preparado en plantilla base.
 - Login propio en `/login/`.
 - Logout por POST en `/logout/`.
 - Dashboard inicial protegido en `/`.
+- Gestion de filiales en `/iglesias/`:
+  - alta de filial con pastor o encargado inicial en una sola operacion;
+  - edicion y desactivacion sin borrar historial.
+- Gestion delegada de usuarios en `/usuarios/`:
+  - Nacional gestiona autoridades iniciales de filiales;
+  - pastor y encargado gestionan solo cuentas locales delegables;
+  - creacion, edicion, desactivacion y restablecimiento de contrasena;
+  - cambio obligatorio de contrasena temporal en el primer acceso.
 - Listado inicial de miembros en `/miembros/`.
 - Tailwind compilado desde `backend/static/css/input.css` hacia `backend/static/css/app.css`.
 - `django-environ` para variables de entorno.
 - `django-axes` para proteccion contra fuerza bruta.
+- `reportlab` para generacion de certificados PDF.
 - Usuario personalizado `apps.usuarios.Usuario`.
 - Roles iniciales definidos en `Usuario.Rol`.
 - Apps creadas segun arquitectura inicial.
@@ -97,6 +135,14 @@ solo de esa filial.
   - `AsignacionCargo`.
   - `Ministerio`.
   - `ParticipacionMinisterio`.
+  - `NivelEscuelaDominical`.
+  - `ClaseEscuelaDominical`.
+  - `MatriculaEscuelaDominical`.
+  - `SesionEscuelaDominical`.
+  - `AsistenciaEscuelaDominical`.
+  - `ProcesoPromocionEscuelaDominical`.
+  - `ResultadoPromocionEscuelaDominical`.
+  - `CertificadoEscuelaDominical`.
   - `RegistroAuditoria`.
 - Admin basico para modelos iniciales.
 - Migraciones iniciales creadas y aplicadas.
@@ -176,6 +222,7 @@ El comando `seed_inicial` fue ejecutado en la base local.
 - Encargado.
 - Lider de ministerio.
 - Maestro.
+- Director de Escuela Dominical.
 
 ### Parametros
 
@@ -216,6 +263,18 @@ Se creo un grupo Django por cada rol inicial:
 - Existe comando para normalizar el superusuario tecnico:
   `python manage.py normalizar_superusuario --username admin`.
 - Helpers/decoradores de permisos funcionales en `apps.core.permisos`.
+- Separacion estricta entre `SUPERADMIN` y roles nacionales validada en
+  dashboard, vistas, API y Django Admin.
+- Lideres de ministerio limitados a ministerios asignados; pueden operar
+  participantes, pero no crear ni redefinir ministerios.
+- Maestros limitados a clases asignadas; pueden operar matriculas, pero no
+  crear niveles ni clases.
+- Auditoria automatica para creaciones y modificaciones realizadas por
+  usuarios nacionales sobre datos de una filial.
+- Auditoria de administracion local de cuentas sin almacenar contrasenas ni
+  hashes.
+- El acceso funcional adicional se obtiene por asignacion a ministerio o clase,
+  sin necesidad de crear otra cuenta ni cambiar el rol principal.
 - Dashboard inicial usa la matriz de permisos para mostrar modulos disponibles por rol.
 - Modulo Miembros iniciado con listado, busqueda, filtro por estado, detalle,
   creacion, edicion, acciones pastorales iniciales y alcance por iglesia.
@@ -247,21 +306,36 @@ Se creo un grupo Django por cada rol inicial:
   iglesia, estado civil y vinculos familiares opcionales.
 - Tests de `apps.api` cubren health publico, autenticacion, permisos, busqueda
   y alcance por iglesia para Miembros/Familias/Matrimonios.
+- Tests de `apps.api` cubren consulta, filtros, permisos y alcance por iglesia
+  para Ministerios y participaciones ministeriales.
 - Tests de `apps.cargos` cubren listado, detalle, creacion, validaciones,
   finalizacion, permisos y aislamiento por iglesia.
 - API de Cargos/directivas expone cargos y asignaciones en modo consulta,
   protegida por permisos y alcance por iglesia.
 - Tests de `apps.ministerios` cubren listado, detalle, creacion, validaciones,
   participaciones, finalizacion, permisos y aislamiento por iglesia.
+- Tests de `apps.escuela_dominical` cubren niveles, clases, maestros, matriculas,
+  cupos, sesiones, asistencia, cierre, permisos, aislamiento por iglesia,
+  cortes de edad, promociones, egreso a Jovenes e idempotencia.
+- Tests de `apps.certificados` cubren elegibilidad, numeracion, firmas vigentes,
+  emision idempotente, PDF, permisos, aislamiento por iglesia y anulacion.
+- Tests de `apps.auditoria` cubren intervencion nacional sobre filiales y
+  ausencia de auditoria nacional en la gestion propia de una filial.
 - Tailwind ya no usa CDN.
 - Compose dev y prod validan correctamente.
+- Migracion `escuela_dominical.0003` aplicada para procesos y resultados de
+  promocion.
+- Migracion `certificados.0001` aplicada para certificados de Escuela Dominical.
+- Suite completa validada: 157 tests aprobados.
+- `python manage.py check` sin issues y sin migraciones pendientes.
 
 ## Pendiente Proximo Recomendado
 
 Siguiente bloque recomendado:
 
-1. Agregar API de consulta para Ministerios.
-2. Iniciar el siguiente modulo funcional pequeno: Escuela Dominical.
+1. Validar el diseno PDF con la plantilla institucional e incorporar logotipo
+   o fondo oficial cuando se entregue el archivo fuente.
+2. Continuar con el flujo de traslados entre iglesias.
 
 No conviene iniciar vistas de modulos grandes hasta cerrar permisos y acceso por
 iglesia.

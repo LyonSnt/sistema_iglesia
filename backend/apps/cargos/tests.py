@@ -89,14 +89,13 @@ class AsignacionCargoViewsTests(TestCase):
         self.assertContains(response, "Ana Maria")
         self.assertNotContains(response, "Carlos")
 
-    def test_usuario_nacional_ve_todas_las_asignaciones(self):
+    def test_usuario_nacional_no_accede_modulo_operativo_de_cargos(self):
         usuario = self.crear_usuario("auditor", Usuario.Rol.AUDITOR_NACIONAL, self.nacional)
         self.client.force_login(usuario)
 
         response = self.client.get(reverse("cargos:list"))
 
-        self.assertContains(response, "Ana Maria")
-        self.assertContains(response, "Carlos")
+        self.assertEqual(response.status_code, 403)
 
     def test_detalle_respeta_alcance_por_iglesia(self):
         usuario = self.crear_usuario("secretario", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
@@ -133,7 +132,9 @@ class AsignacionCargoViewsTests(TestCase):
         self.assertEqual(asignacion.iglesia, self.filial)
 
     def test_no_permite_miembro_de_otra_iglesia(self):
-        usuario = self.crear_usuario("admin_nacional", Usuario.Rol.ADMIN_NACIONAL, self.nacional)
+        usuario = self.crear_usuario("superadmin", Usuario.Rol.SUPERADMIN, self.nacional)
+        usuario.is_superuser = True
+        usuario.save(update_fields=["is_superuser"])
         self.client.force_login(usuario)
 
         response = self.client.post(

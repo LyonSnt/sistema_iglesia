@@ -4,6 +4,7 @@ from apps.cargos.models import AsignacionCargo, Cargo
 from apps.familias.models import Familia, Matrimonio, MiembroFamilia
 from apps.iglesias.models import Iglesia
 from apps.miembros.models import Miembro
+from apps.ministerios.models import Ministerio, ParticipacionMinisterio
 
 
 class IglesiaResumenSerializer(serializers.ModelSerializer):
@@ -143,6 +144,55 @@ class AsignacionCargoSerializer(serializers.ModelSerializer):
             "estado_display",
             "observacion",
             "activo",
+            "creado_en",
+            "actualizado_en",
+        )
+
+
+class ParticipacionMinisterioSerializer(serializers.ModelSerializer):
+    ministerio_nombre = serializers.CharField(source="ministerio.nombre", read_only=True)
+    miembro = MiembroResumenSerializer(read_only=True)
+    estado_display = serializers.CharField(source="get_estado_display", read_only=True)
+
+    class Meta:
+        model = ParticipacionMinisterio
+        fields = (
+            "id",
+            "ministerio",
+            "ministerio_nombre",
+            "miembro",
+            "cargo",
+            "fecha_inicio",
+            "fecha_fin",
+            "estado",
+            "estado_display",
+            "motivo_salida",
+            "activo",
+            "creado_en",
+            "actualizado_en",
+        )
+
+
+class MinisterioSerializer(serializers.ModelSerializer):
+    iglesia = IglesiaResumenSerializer(read_only=True)
+    responsable = MiembroResumenSerializer(read_only=True)
+    lider = UsuarioResumenSerializer(read_only=True)
+    tipo_display = serializers.CharField(source="get_tipo_display", read_only=True)
+    participaciones = ParticipacionMinisterioSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Ministerio
+        fields = (
+            "id",
+            "iglesia",
+            "nombre",
+            "tipo",
+            "tipo_display",
+            "descripcion",
+            "responsable",
+            "lider",
+            "activo",
+            "participaciones",
             "creado_en",
             "actualizado_en",
         )

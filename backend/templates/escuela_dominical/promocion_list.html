@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Promociones | Ecclesia{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <div class="flex items-end justify-between border-b border-slate-200 pb-6">
+    <div><a class="text-sm text-slate-500" href="{% url 'escuela_dominical:list' %}">Escuela Dominical</a><h1 class="mt-2 text-3xl font-semibold">Cortes y promociones</h1><p class="mt-2 text-sm text-slate-600">Graduacion anual por edad calculada en una fecha exacta de enero.</p></div>
+    <a class="rounded bg-slate-950 px-4 py-2 text-sm text-white" href="{% url 'escuela_dominical:promocion-create' %}">Preparar corte</a>
+  </div>
+  <div class="overflow-hidden rounded border bg-white"><table class="min-w-full divide-y text-sm"><thead class="bg-slate-100 text-left text-xs font-semibold uppercase"><tr><th class="px-4 py-3">Corte</th><th class="px-4 py-3">Periodos</th><th class="px-4 py-3">Iglesia</th><th class="px-4 py-3">Estado</th></tr></thead><tbody class="divide-y">{% for proceso in procesos %}<tr><td class="px-4 py-3"><a class="font-medium" href="{% url 'escuela_dominical:promocion-detail' proceso.pk %}">{{ proceso.fecha_corte|date:"Y-m-d" }}</a></td><td class="px-4 py-3">{{ proceso.periodo_origen }} a {{ proceso.periodo_destino }}</td><td class="px-4 py-3">{{ proceso.iglesia.codigo }}</td><td class="px-4 py-3">{{ proceso.get_estado_display }}</td></tr>{% empty %}<tr><td class="px-4 py-8 text-center text-slate-500" colspan="4">No hay procesos de promocion.</td></tr>{% endfor %}</tbody></table></div>
+</section>
+{% endblock %}

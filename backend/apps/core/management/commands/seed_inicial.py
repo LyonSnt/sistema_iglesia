@@ -32,6 +32,7 @@ class Command(BaseCommand):
         ("Encargado", False),
         ("Lider de ministerio", False),
         ("Maestro", False),
+        ("Director de Escuela Dominical", False),
     )
 
     PARAMETROS = (
@@ -43,19 +44,29 @@ class Command(BaseCommand):
 
     PERMISOS_POR_ROL = {
         Usuario.Rol.SUPERADMIN: "__all__",
-        Usuario.Rol.ADMIN_NACIONAL: "__all__",
-        Usuario.Rol.PRESIDENTE_NACIONAL: ("view",),
-        Usuario.Rol.VICEPRESIDENTE_NACIONAL: ("view",),
-        Usuario.Rol.SECRETARIO_NACIONAL: ("view", "add", "change"),
-        Usuario.Rol.TESORERO_NACIONAL: ("view", "add", "change"),
-        Usuario.Rol.AUDITOR_NACIONAL: ("view",),
-        Usuario.Rol.PASTOR_FILIAL: ("view", "add", "change"),
-        Usuario.Rol.ENCARGADO_FILIAL: ("view", "add", "change"),
-        Usuario.Rol.SECRETARIO_FILIAL: ("view", "add", "change"),
-        Usuario.Rol.TESORERO_FILIAL: ("view", "add", "change"),
-        Usuario.Rol.LIDER_MINISTERIO: ("view",),
-        Usuario.Rol.MAESTRO: ("view",),
-        Usuario.Rol.SOLO_LECTURA: ("view",),
+        Usuario.Rol.ADMIN_NACIONAL: (
+            ("iglesias", "iglesia", ("view", "add", "change")),
+            ("zonas", "zona", ("view",)),
+            ("auditoria", "registroauditoria", ("view",)),
+        ),
+        Usuario.Rol.PRESIDENTE_NACIONAL: (
+            ("auditoria", "registroauditoria", ("view",)),
+        ),
+        Usuario.Rol.VICEPRESIDENTE_NACIONAL: (
+            ("auditoria", "registroauditoria", ("view",)),
+        ),
+        Usuario.Rol.SECRETARIO_NACIONAL: (),
+        Usuario.Rol.TESORERO_NACIONAL: (),
+        Usuario.Rol.AUDITOR_NACIONAL: (
+            ("auditoria", "registroauditoria", ("view",)),
+        ),
+        Usuario.Rol.PASTOR_FILIAL: (),
+        Usuario.Rol.ENCARGADO_FILIAL: (),
+        Usuario.Rol.SECRETARIO_FILIAL: (),
+        Usuario.Rol.TESORERO_FILIAL: (),
+        Usuario.Rol.LIDER_MINISTERIO: (),
+        Usuario.Rol.MAESTRO: (),
+        Usuario.Rol.SOLO_LECTURA: (),
     }
 
     def handle(self, *args, **options):
@@ -144,9 +155,16 @@ class Command(BaseCommand):
             if acciones == "__all__":
                 group.permissions.set(permisos)
             else:
-                group.permissions.set(
-                    permiso for permiso in permisos if permiso.codename.split("_", 1)[0] in acciones
-                )
+                permisos_rol = []
+                for app_label, modelo, acciones_modelo in acciones:
+                    permisos_rol.extend(
+                        permiso
+                        for permiso in permisos
+                        if permiso.content_type.app_label == app_label
+                        and permiso.content_type.model == modelo
+                        and permiso.codename.split("_", 1)[0] in acciones_modelo
+                    )
+                group.permissions.set(permisos_rol)
             self._log(created, "grupo", group.name)
 
     def _log(self, created, tipo, nombre):

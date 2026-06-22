@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from apps.core.iglesias import usuario_es_nacional
 from apps.iglesias.models import Iglesia
 from apps.miembros.models import Miembro
+from apps.usuarios.models import Usuario
 
 from .models import Ministerio, ParticipacionMinisterio
 
@@ -17,7 +18,7 @@ FIELD_CLASS = (
 class MinisterioForm(forms.ModelForm):
     class Meta:
         model = Ministerio
-        fields = ("iglesia", "nombre", "tipo", "descripcion", "responsable", "activo")
+        fields = ("iglesia", "nombre", "tipo", "descripcion", "responsable", "lider", "activo")
         widgets = {"descripcion": forms.Textarea(attrs={"rows": 4})}
 
     def __init__(self, *args, user=None, **kwargs):
@@ -26,18 +27,22 @@ class MinisterioForm(forms.ModelForm):
 
         iglesias = Iglesia.objects.filter(activo=True).order_by("nombre")
         miembros = Miembro.objects.filter(activo=True).select_related("iglesia").order_by("apellidos", "nombres")
+        lideres = Usuario.objects.filter(is_active=True).select_related("iglesia")
 
         if user is not None and not usuario_es_nacional(user):
             iglesias = iglesias.filter(pk=user.iglesia_id)
             miembros = miembros.filter(iglesia=user.iglesia)
+            lideres = lideres.filter(iglesia=user.iglesia)
             self.fields["iglesia"].required = False
             self.fields["iglesia"].widget = forms.HiddenInput()
             self.fields["iglesia"].disabled = True
         elif self.instance and self.instance.pk and self.instance.iglesia_id:
             miembros = miembros.filter(iglesia=self.instance.iglesia)
+            lideres = lideres.filter(iglesia=self.instance.iglesia)
 
         self.fields["iglesia"].queryset = iglesias
         self.fields["responsable"].queryset = miembros
+        self.fields["lider"].queryset = lideres.order_by("iglesia__nombre", "username")
 
         for field in self.fields.values():
             if isinstance(field.widget, forms.CheckboxInput):
@@ -49,6 +54,7 @@ class MinisterioForm(forms.ModelForm):
         cleaned_data = super().clean()
         iglesia = cleaned_data.get("iglesia")
         responsable = cleaned_data.get("responsable")
+        lider = cleaned_data.get("lider")
 
         if self.user is not None and not usuario_es_nacional(self.user):
             iglesia = self.user.iglesia
@@ -56,6 +62,8 @@ class MinisterioForm(forms.ModelForm):
 
         if iglesia is not None and responsable is not None and responsable.iglesia_id != iglesia.id:
             raise ValidationError("El responsable debe pertenecer a la misma iglesia del ministerio.")
+        if iglesia is not None and lider is not None and lider.iglesia_id != iglesia.id:
+            raise ValidationError("El lider debe pertenecer a la misma iglesia del ministerio.")
 
         return cleaned_data
 

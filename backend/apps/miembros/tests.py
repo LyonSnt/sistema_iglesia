@@ -68,14 +68,13 @@ class MiembroListViewTests(TestCase):
         self.assertContains(response, "Ana Maria")
         self.assertNotContains(response, "Carlos")
 
-    def test_usuario_nacional_ve_miembros_de_todas_las_iglesias(self):
+    def test_usuario_nacional_no_accede_modulo_operativo_de_miembros(self):
         usuario = self.crear_usuario("auditor", Usuario.Rol.AUDITOR_NACIONAL, self.nacional)
         self.client.force_login(usuario)
 
         response = self.client.get(reverse("miembros:list"))
 
-        self.assertContains(response, "Ana Maria")
-        self.assertContains(response, "Carlos")
+        self.assertEqual(response.status_code, 403)
 
     def test_busqueda_filtra_resultados(self):
         usuario = self.crear_usuario("pastor", Usuario.Rol.PASTOR_FILIAL, self.filial)
@@ -182,8 +181,10 @@ class MiembroFormViewTests(TestCase):
         miembro = Miembro.objects.get(nombres="Forzado")
         self.assertEqual(miembro.iglesia, self.filial)
 
-    def test_usuario_nacional_puede_elegir_iglesia_al_crear(self):
-        usuario = self.crear_usuario("admin_nacional", Usuario.Rol.ADMIN_NACIONAL, self.nacional)
+    def test_superadmin_puede_elegir_iglesia_al_crear(self):
+        usuario = self.crear_usuario("superadmin", Usuario.Rol.SUPERADMIN, self.nacional)
+        usuario.is_superuser = True
+        usuario.save(update_fields=["is_superuser"])
         self.client.force_login(usuario)
 
         response = self.client.post(

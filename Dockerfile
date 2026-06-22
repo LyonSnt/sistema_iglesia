@@ -31,6 +31,7 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 COPY backend /app
 COPY --from=assets /build/static/css/app.css /app/static/css/app.css
+COPY --from=assets /build/static/css/app.css /opt/ecclesia-assets/app.css
 
 RUN useradd --create-home --shell /usr/sbin/nologin appuser \
     && mkdir -p /app/staticfiles /app/media \

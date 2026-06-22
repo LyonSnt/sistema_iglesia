@@ -41,13 +41,15 @@ El comando puede ejecutarse varias veces. No duplica registros existentes.
 - Encargado.
 - Lider de ministerio.
 - Maestro.
+- Director de Escuela Dominical.
 
 ### Parametros
 
 - `APORTE_NACIONAL_PORCENTAJE`: porcentaje base del aporte nacional.
 - `ESCUELA_DOMINICAL_DIA_CORTE`: dia de corte para promociones.
 - `CERTIFICADOS_PREFIJO`: prefijo documental.
-- `CERTIFICADOS_SECUENCIAL_INICIAL`: inicio de numeracion.
+- `CERTIFICADOS_SECUENCIAL_INICIAL`: siguiente numero disponible; se incrementa
+  al emitir un certificado.
 
 ### Grupos
 
