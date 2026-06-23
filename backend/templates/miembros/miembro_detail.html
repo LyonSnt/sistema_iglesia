@@ -1,152 +1,216 @@
 {% extends "base.html" %}
-
 {% block title %}{{ miembro.apellidos }} {{ miembro.nombres }} | Ecclesia{% endblock %}
-
 {% block content %}
-  <section class="space-y-6">
-    <div class="flex flex-col gap-4 border-b border-slate-200 pb-6 md:flex-row md:items-end md:justify-between">
-      <div>
-        <a class="text-sm font-medium text-slate-500 hover:text-slate-950" href="{% url 'miembros:list' %}">Miembros</a>
-        <h1 class="mt-2 text-3xl font-semibold text-slate-950">{{ miembro.apellidos }} {{ miembro.nombres }}</h1>
-        <p class="mt-2 text-sm text-slate-600">{{ miembro.iglesia.codigo }} - {{ miembro.iglesia.nombre }}</p>
-      </div>
-      {% if puede_gestionar %}
-        <div class="flex flex-wrap gap-2">
-          <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'miembros:update' miembro.pk %}">Editar</a>
-          <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800" href="{% url 'miembros:bautismo' miembro.pk %}">Bautismo</a>
-          <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800" href="{% url 'miembros:membresia' miembro.pk %}">Membresia</a>
-          <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800" href="{% url 'miembros:matrimonio' miembro.pk %}">Matrimonio</a>
-          <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'miembros:fallecimiento' miembro.pk %}">Fallecimiento</a>
+    <section class="space-y-6">
+        <div class="flex flex-col gap-4 border-b border-slate-200 pb-6 md:flex-row md:items-end md:justify-between">
+            <div>
+                <a class="text-sm font-medium text-slate-500 hover:text-slate-950"
+                   href="{% url 'miembros:list' %}">Miembros</a>
+                <h1 class="mt-2 text-3xl font-semibold text-slate-950">{{ miembro.apellidos }} {{ miembro.nombres }}</h1>
+                <p class="mt-2 text-sm text-slate-600">{{ miembro.iglesia.codigo }} - {{ miembro.iglesia.nombre }}</p>
+            </div>
+            {% if puede_gestionar %}
+                <div class="flex flex-wrap gap-2">
+                    <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                       href="{% url 'miembros:update' miembro.pk %}">Editar</a>
+                    <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                       href="{% url 'miembros:bautismo' miembro.pk %}">Bautismo</a>
+                    <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                       href="{% url 'miembros:membresia' miembro.pk %}">Membresia</a>
+                    <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                       href="{% url 'miembros:matrimonio' miembro.pk %}">Matrimonio</a>
+                    <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                       href="{% url 'miembros:fallecimiento' miembro.pk %}">Fallecimiento</a>
+                </div>
+            {% endif %}
         </div>
-      {% endif %}
-    </div>
-
-    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      <div class="rounded border border-slate-200 bg-white p-5">
-        <h2 class="font-semibold text-slate-950">Datos personales</h2>
-        <dl class="mt-4 space-y-3 text-sm">
-          <div><dt class="text-slate-500">Cedula</dt><dd class="text-slate-950">{{ miembro.cedula|default:"-" }}</dd></div>
-          <div><dt class="text-slate-500">Sexo</dt><dd class="text-slate-950">{{ miembro.get_sexo_display }}</dd></div>
-          <div><dt class="text-slate-500">Estado civil</dt><dd class="text-slate-950">{{ miembro.get_estado_civil_display|default:"-" }}</dd></div>
-          <div><dt class="text-slate-500">Fecha de nacimiento</dt><dd class="text-slate-950">{{ miembro.fecha_nacimiento|date:"Y-m-d"|default:"-" }}</dd></div>
-        </dl>
-      </div>
-
-      <div class="rounded border border-slate-200 bg-white p-5">
-        <h2 class="font-semibold text-slate-950">Contacto</h2>
-        <dl class="mt-4 space-y-3 text-sm">
-          <div><dt class="text-slate-500">Telefono</dt><dd class="text-slate-950">{{ miembro.telefono|default:"-" }}</dd></div>
-          <div><dt class="text-slate-500">Direccion</dt><dd class="text-slate-950">{{ miembro.direccion|default:"-" }}</dd></div>
-        </dl>
-      </div>
-
-      <div class="rounded border border-slate-200 bg-white p-5">
-        <h2 class="font-semibold text-slate-950">Estado</h2>
-        <dl class="mt-4 space-y-3 text-sm">
-          <div><dt class="text-slate-500">Estado</dt><dd class="text-slate-950">{{ miembro.get_estado_display }}</dd></div>
-          <div><dt class="text-slate-500">Activo</dt><dd class="text-slate-950">{% if miembro.activo %}Si{% else %}No{% endif %}</dd></div>
-        </dl>
-      </div>
-    </div>
-
-    <div class="rounded border border-slate-200 bg-white p-5">
-      <h2 class="font-semibold text-slate-950">Vida pastoral</h2>
-      <dl class="mt-4 grid gap-4 text-sm md:grid-cols-2 xl:grid-cols-4">
-        <div><dt class="text-slate-500">Conversion</dt><dd class="text-slate-950">{{ miembro.fecha_conversion|date:"Y-m-d"|default:"-" }}</dd></div>
-        <div><dt class="text-slate-500">Bautismo</dt><dd class="text-slate-950">{{ miembro.fecha_bautismo|date:"Y-m-d"|default:"-" }}</dd></div>
-        <div><dt class="text-slate-500">Membresia</dt><dd class="text-slate-950">{{ miembro.fecha_membresia|date:"Y-m-d"|default:"-" }}</dd></div>
-        <div><dt class="text-slate-500">Fallecimiento</dt><dd class="text-slate-950">{{ miembro.fecha_fallecimiento|date:"Y-m-d"|default:"-" }}</dd></div>
-      </dl>
-    </div>
-
-    <div class="rounded border border-slate-200 bg-white p-5">
-      <h2 class="font-semibold text-slate-950">Matrimonios</h2>
-      <div class="mt-4 overflow-hidden rounded border border-slate-200">
-        <table class="min-w-full divide-y divide-slate-200 text-sm">
-          <thead class="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-            <tr>
-              <th class="px-4 py-3">Conyuge</th>
-              <th class="px-4 py-3">Fecha</th>
-              <th class="px-4 py-3">Familia</th>
-              <th class="px-4 py-3">Estado</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100">
-            {% for matrimonio in matrimonios %}
-              <tr>
-                <td class="px-4 py-3 text-slate-950">
-                  {% if matrimonio.conyuge_1_id == miembro.id %}
-                    {{ matrimonio.conyuge_2 }}
-                  {% else %}
-                    {{ matrimonio.conyuge_1 }}
-                  {% endif %}
-                </td>
-                <td class="px-4 py-3 text-slate-700">{{ matrimonio.fecha_matrimonio|date:"Y-m-d" }}</td>
-                <td class="px-4 py-3 text-slate-700">{{ matrimonio.familia.nombre|default:"-" }}</td>
-                <td class="px-4 py-3 text-slate-700">{% if matrimonio.activo %}Activo{% else %}Inactivo{% endif %}</td>
-              </tr>
-            {% empty %}
-              <tr>
-                <td class="px-4 py-8 text-center text-sm text-slate-500" colspan="4">
-                  No hay matrimonios registrados para este miembro.
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="rounded border border-slate-200 bg-white p-5">
-      <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <h2 class="font-semibold text-slate-950">Familias</h2>
-        {% if puede_gestionar %}
-          <div class="flex flex-wrap gap-2">
-            <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800" href="{% url 'miembros:familia_create' miembro.pk %}">
-              Crear familia
-            </a>
-            <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'miembros:familia_link' miembro.pk %}">
-              Vincular familia
-            </a>
-          </div>
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div class="rounded border border-slate-200 bg-white p-5">
+                <h2 class="font-semibold text-slate-950">Datos personales</h2>
+                <dl class="mt-4 space-y-3 text-sm">
+                    <div>
+                        <dt class="text-slate-500">Cedula</dt>
+                        <dd class="text-slate-950">
+                            {{ miembro.cedula|default:"-" }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-slate-500">Sexo</dt>
+                        <dd class="text-slate-950">
+                            {{ miembro.get_sexo_display }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-slate-500">Estado civil</dt>
+                        <dd class="text-slate-950">
+                            {{ miembro.get_estado_civil_display|default:"-" }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-slate-500">Fecha de nacimiento</dt>
+                        <dd class="text-slate-950">
+                            {{ miembro.fecha_nacimiento|date:"Y-m-d"|default:"-" }}
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+            <div class="rounded border border-slate-200 bg-white p-5">
+                <h2 class="font-semibold text-slate-950">Contacto</h2>
+                <dl class="mt-4 space-y-3 text-sm">
+                    <div>
+                        <dt class="text-slate-500">Telefono</dt>
+                        <dd class="text-slate-950">
+                            {{ miembro.telefono|default:"-" }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-slate-500">Direccion</dt>
+                        <dd class="text-slate-950">
+                            {{ miembro.direccion|default:"-" }}
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+            <div class="rounded border border-slate-200 bg-white p-5">
+                <h2 class="font-semibold text-slate-950">Estado</h2>
+                <dl class="mt-4 space-y-3 text-sm">
+                    <div>
+                        <dt class="text-slate-500">Estado</dt>
+                        <dd class="text-slate-950">
+                            {{ miembro.get_estado_display }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-slate-500">Activo</dt>
+                        <dd class="text-slate-950">
+                            {% if miembro.activo %}
+                                Si
+                            {% else %}
+                                No
+                            {% endif %}
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+        <div class="rounded border border-slate-200 bg-white p-5">
+            <h2 class="font-semibold text-slate-950">Vida pastoral</h2>
+            <dl class="mt-4 grid gap-4 text-sm md:grid-cols-2 xl:grid-cols-4">
+                <div>
+                    <dt class="text-slate-500">Conversion</dt>
+                    <dd class="text-slate-950">
+                        {{ miembro.fecha_conversion|date:"Y-m-d"|default:"-" }}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-slate-500">Bautismo</dt>
+                    <dd class="text-slate-950">
+                        {{ miembro.fecha_bautismo|date:"Y-m-d"|default:"-" }}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-slate-500">Membresia</dt>
+                    <dd class="text-slate-950">
+                        {{ miembro.fecha_membresia|date:"Y-m-d"|default:"-" }}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-slate-500">Fallecimiento</dt>
+                    <dd class="text-slate-950">
+                        {{ miembro.fecha_fallecimiento|date:"Y-m-d"|default:"-" }}
+                    </dd>
+                </div>
+            </dl>
+        </div>
+        <div class="rounded border border-slate-200 bg-white p-5">
+            <h2 class="font-semibold text-slate-950">Matrimonios</h2>
+            <div class="mt-4 overflow-hidden rounded border border-slate-200">
+                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead class="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                        <tr>
+                            <th class="px-4 py-3">Conyuge</th>
+                            <th class="px-4 py-3">Fecha</th>
+                            <th class="px-4 py-3">Familia</th>
+                            <th class="px-4 py-3">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for matrimonio in matrimonios %}
+                            <tr>
+                                <td class="px-4 py-3 text-slate-950">
+                                    {% if matrimonio.conyuge_1_id == miembro.id %}
+                                        {{ matrimonio.conyuge_2 }}
+                                    {% else %}
+                                        {{ matrimonio.conyuge_1 }}
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3 text-slate-700">{{ matrimonio.fecha_matrimonio|date:"Y-m-d" }}</td>
+                                <td class="px-4 py-3 text-slate-700">{{ matrimonio.familia.nombre|default:"-" }}</td>
+                                <td class="px-4 py-3 text-slate-700">
+                                    {% if matrimonio.activo %}
+                                        Activo
+                                    {% else %}
+                                        Inactivo
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td class="px-4 py-8 text-center text-sm text-slate-500" colspan="4">
+                                    No hay matrimonios registrados para este miembro.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="rounded border border-slate-200 bg-white p-5">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <h2 class="font-semibold text-slate-950">Familias</h2>
+                {% if puede_gestionar %}
+                    <div class="flex flex-wrap gap-2">
+                        <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                           href="{% url 'miembros:familia_create' miembro.pk %}">Crear familia</a>
+                        <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                           href="{% url 'miembros:familia_link' miembro.pk %}">Vincular familia</a>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="mt-4 overflow-hidden rounded border border-slate-200">
+                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead class="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                        <tr>
+                            <th class="px-4 py-3">Familia</th>
+                            <th class="px-4 py-3">Relacion</th>
+                            <th class="px-4 py-3">Jefe de hogar</th>
+                            <th class="px-4 py-3">Telefono</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for integrante in familias %}
+                            <tr>
+                                <td class="px-4 py-3 font-medium text-slate-950">{{ integrante.familia.nombre }}</td>
+                                <td class="px-4 py-3 text-slate-700">{{ integrante.get_relacion_display }}</td>
+                                <td class="px-4 py-3 text-slate-700">{{ integrante.familia.jefe_hogar }}</td>
+                                <td class="px-4 py-3 text-slate-700">{{ integrante.familia.telefono|default:"-" }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td class="px-4 py-8 text-center text-sm text-slate-500" colspan="4">
+                                    Este miembro aun no esta vinculado a una familia.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% if miembro.observacion %}
+            <div class="rounded border border-slate-200 bg-white p-5">
+                <h2 class="font-semibold text-slate-950">Observacion</h2>
+                <p class="mt-3 whitespace-pre-line text-sm leading-6 text-slate-700">{{ miembro.observacion }}</p>
+            </div>
         {% endif %}
-      </div>
-
-      <div class="mt-4 overflow-hidden rounded border border-slate-200">
-        <table class="min-w-full divide-y divide-slate-200 text-sm">
-          <thead class="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-            <tr>
-              <th class="px-4 py-3">Familia</th>
-              <th class="px-4 py-3">Relacion</th>
-              <th class="px-4 py-3">Jefe de hogar</th>
-              <th class="px-4 py-3">Telefono</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100">
-            {% for integrante in familias %}
-              <tr>
-                <td class="px-4 py-3 font-medium text-slate-950">{{ integrante.familia.nombre }}</td>
-                <td class="px-4 py-3 text-slate-700">{{ integrante.get_relacion_display }}</td>
-                <td class="px-4 py-3 text-slate-700">{{ integrante.familia.jefe_hogar }}</td>
-                <td class="px-4 py-3 text-slate-700">{{ integrante.familia.telefono|default:"-" }}</td>
-              </tr>
-            {% empty %}
-              <tr>
-                <td class="px-4 py-8 text-center text-sm text-slate-500" colspan="4">
-                  Este miembro aun no esta vinculado a una familia.
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    {% if miembro.observacion %}
-      <div class="rounded border border-slate-200 bg-white p-5">
-        <h2 class="font-semibold text-slate-950">Observacion</h2>
-        <p class="mt-3 whitespace-pre-line text-sm leading-6 text-slate-700">{{ miembro.observacion }}</p>
-      </div>
-    {% endif %}
-  </section>
+    </section>
 {% endblock %}

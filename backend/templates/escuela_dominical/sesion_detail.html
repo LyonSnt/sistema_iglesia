@@ -1,3 +1,55 @@
 {% extends "base.html" %}
 {% block title %}Sesion {{ sesion.fecha|date:"Y-m-d" }} | Ecclesia{% endblock %}
-{% block content %}<section class="space-y-6"><div class="flex items-end justify-between border-b pb-6"><div><a class="text-sm text-slate-500" href="{% url 'escuela_dominical:detail' sesion.clase_id %}">{{ sesion.clase.nombre }}</a><h1 class="mt-2 text-3xl font-semibold">Sesion del {{ sesion.fecha|date:"Y-m-d" }}</h1><p class="mt-2 text-sm text-slate-600">{{ sesion.tema|default:"Sin tema" }} / {% if sesion.cerrada %}Cerrada{% else %}Abierta{% endif %}</p></div>{% if puede_corregir %}<a class="rounded bg-slate-950 px-4 py-2 text-sm text-white" href="{% url 'escuela_dominical:asistencia' sesion.clase_id sesion.pk %}">{% if sesion.cerrada %}Corregir asistencia{% else %}Tomar asistencia{% endif %}</a>{% endif %}</div><div class="overflow-hidden rounded border bg-white"><table class="min-w-full divide-y text-sm"><thead class="bg-slate-100 text-left text-xs font-semibold uppercase"><tr><th class="px-4 py-3">Alumno</th><th class="px-4 py-3">Estado</th><th class="px-4 py-3">Observacion</th></tr></thead><tbody class="divide-y">{% for asistencia in asistencias %}<tr><td class="px-4 py-3 font-medium">{{ asistencia.matricula.alumno }}</td><td class="px-4 py-3">{{ asistencia.get_estado_display }}</td><td class="px-4 py-3">{{ asistencia.observacion|default:"-" }}</td></tr>{% empty %}<tr><td class="px-4 py-8 text-center text-slate-500" colspan="3">Todavia no se registro asistencia.</td></tr>{% endfor %}</tbody></table></div></section>{% endblock %}
+{% block content %}
+    <section class="space-y-6">
+        <div class="flex items-end justify-between border-b pb-6">
+            <div>
+                <a class="text-sm text-slate-500"
+                   href="{% url 'escuela_dominical:detail' sesion.clase_id %}">{{ sesion.clase.nombre }}</a>
+                <h1 class="mt-2 text-3xl font-semibold">Sesion del {{ sesion.fecha|date:"Y-m-d" }}</h1>
+                <p class="mt-2 text-sm text-slate-600">
+                    {{ sesion.tema|default:"Sin tema" }} /
+                    {% if sesion.cerrada %}
+                        Cerrada
+                    {% else %}
+                        Abierta
+                    {% endif %}
+                </p>
+            </div>
+            {% if puede_corregir %}
+                <a class="rounded bg-slate-950 px-4 py-2 text-sm text-white"
+                   href="{% url 'escuela_dominical:asistencia' sesion.clase_id sesion.pk %}">
+                    {% if sesion.cerrada %}
+                        Corregir asistencia
+                    {% else %}
+                        Tomar asistencia
+                    {% endif %}
+                </a>
+            {% endif %}
+        </div>
+        <div class="overflow-hidden rounded border bg-white">
+            <table class="min-w-full divide-y text-sm">
+                <thead class="bg-slate-100 text-left text-xs font-semibold uppercase">
+                    <tr>
+                        <th class="px-4 py-3">Alumno</th>
+                        <th class="px-4 py-3">Estado</th>
+                        <th class="px-4 py-3">Observacion</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    {% for asistencia in asistencias %}
+                        <tr>
+                            <td class="px-4 py-3 font-medium">{{ asistencia.matricula.alumno }}</td>
+                            <td class="px-4 py-3">{{ asistencia.get_estado_display }}</td>
+                            <td class="px-4 py-3">{{ asistencia.observacion|default:"-" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td class="px-4 py-8 text-center text-slate-500" colspan="3">Todavia no se registro asistencia.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

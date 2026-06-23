@@ -1,3 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Preparar promocion | Ecclesia{% endblock %}
-{% block content %}<section class="mx-auto max-w-3xl space-y-6"><div class="border-b pb-6"><a class="text-sm text-slate-500" href="{% url 'escuela_dominical:promocion-list' %}">Promociones</a><h1 class="mt-2 text-3xl font-semibold">Preparar corte anual</h1><p class="mt-2 text-sm text-slate-600">La fecha debe ser un dia exacto de enero dentro del periodo destino.</p></div>{% include "escuela_dominical/formulario.html" with cancelar_url="escuela_dominical:promocion-list" %}</section>{% endblock %}
+{% block content %}
+    <section class="mx-auto max-w-3xl space-y-6">
+        <div class="border-b pb-6">
+            <a class="text-sm text-slate-500"
+               href="{% url 'escuela_dominical:promocion-list' %}">Promociones</a>
+            <h1 class="mt-2 text-3xl font-semibold">Preparar corte anual</h1>
+            <p class="mt-2 text-sm text-slate-600">La fecha debe ser un dia exacto de enero dentro del periodo destino.</p>
+        </div>
+        {% include "escuela_dominical/formulario.html" with cancelar_url="escuela_dominical:promocion-list" %}
+    </section>
+{% endblock %}
