@@ -1,3 +1,4 @@
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, PasswordChangeView
 from django.urls import reverse
 from django.views.generic import TemplateView
@@ -19,7 +20,6 @@ from .permisos import (
     MODULO_REPORTES,
     MODULO_TRASLADOS,
     MODULO_USUARIOS,
-    PermisoModuloMixin,
     usuario_puede,
 )
 
@@ -42,10 +42,8 @@ class CambiarPasswordObligatorioView(PasswordChangeView):
         return reverse("core:dashboard")
 
 
-class DashboardView(PermisoModuloMixin, TemplateView):
+class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "core/dashboard.html"
-    modulo_permiso = MODULO_REPORTES
-    accion_permiso = ACCION_VER
 
     MODULOS = (
         {
@@ -92,6 +90,7 @@ class DashboardView(PermisoModuloMixin, TemplateView):
             "codigo": MODULO_TRASLADOS,
             "nombre": "Traslados",
             "descripcion": "Movimiento de miembros entre iglesias.",
+            "url_name": "traslados:list",
         },
         {
             "codigo": MODULO_INVENTARIO,
@@ -119,6 +118,7 @@ class DashboardView(PermisoModuloMixin, TemplateView):
             "codigo": MODULO_REPORTES,
             "nombre": "Reportes",
             "descripcion": "Lecturas consolidadas segun rol.",
+            "url_name": "reportes:traslados",
         },
         {
             "codigo": MODULO_AUDITORIA,

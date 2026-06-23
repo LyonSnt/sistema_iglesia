@@ -5,7 +5,6 @@ from apps.usuarios.models import Usuario
 ROLES_CON_ALCANCE_COMPLETO_FILIAL = {
     Usuario.Rol.PASTOR_FILIAL,
     Usuario.Rol.ENCARGADO_FILIAL,
-    Usuario.Rol.SOLO_LECTURA,
 }
 
 

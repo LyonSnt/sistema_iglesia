@@ -11,8 +11,6 @@ ROLES_AUTORIDAD_FILIAL = (
 ROLES_DELEGABLES_FILIAL = (
     Usuario.Rol.SECRETARIO_FILIAL,
     Usuario.Rol.TESORERO_FILIAL,
-    Usuario.Rol.LIDER_MINISTERIO,
-    Usuario.Rol.MAESTRO,
     Usuario.Rol.SOLO_LECTURA,
 )
 

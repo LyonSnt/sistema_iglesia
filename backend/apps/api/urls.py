@@ -14,6 +14,8 @@ from .views import (
     MinisterioRetrieveAPIView,
     ParticipacionMinisterioListAPIView,
     ParticipacionMinisterioRetrieveAPIView,
+    TrasladoMiembroListAPIView,
+    TrasladoMiembroRetrieveAPIView,
 )
 
 app_name = "api"
@@ -40,4 +42,6 @@ urlpatterns = [
         ParticipacionMinisterioRetrieveAPIView.as_view(),
         name="participacion-ministerio-detail",
     ),
+    path("traslados/", TrasladoMiembroListAPIView.as_view(), name="traslado-list"),
+    path("traslados/<int:pk>/", TrasladoMiembroRetrieveAPIView.as_view(), name="traslado-detail"),
 ]

@@ -30,8 +30,10 @@
 - Cargos/directivas: [x] listado; [x] detalle; [x] creacion y edicion;
   [x] finalizacion; [x] API de consulta; pendiente documentos adjuntos.
 - Ministerios: [x] listado; [x] detalle; [x] creacion y edicion;
-  [x] participaciones; [x] finalizacion de participaciones; pendiente API.
-- Traslados: flujo origen, destino y auditoria nacional.
+  [x] participaciones; [x] finalizacion de participaciones; [x] API de consulta.
+- Traslados: [x] solicitud origen-destino; [x] aceptacion/rechazo por destino;
+  [x] anulacion por origen; [x] cambio transaccional de iglesia; [x] auditoria;
+  [x] API de consulta; [x] reporte nacional.
 - Finanzas: ingresos, egresos y cierre mensual.
 - Aportes nacionales: cuenta corriente filial-nacional.
 - Certificados: [x] numeracion, [x] emision individual y por lote,

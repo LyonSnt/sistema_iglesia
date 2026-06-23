@@ -49,8 +49,8 @@ class MinisterioViewsTests(TestCase):
             cedula="0303030303",
             sexo=Miembro.Sexo.MASCULINO,
         )
-        self.lider = self.crear_usuario("lider", Usuario.Rol.LIDER_MINISTERIO, self.filial)
-        self.otro_lider = self.crear_usuario("otro_lider", Usuario.Rol.LIDER_MINISTERIO, self.filial)
+        self.lider = self.crear_usuario("lider", Usuario.Rol.SOLO_LECTURA, self.filial)
+        self.otro_lider = self.crear_usuario("otro_lider", Usuario.Rol.SOLO_LECTURA, self.filial)
         self.ministerio = Ministerio.objects.create(
             iglesia=self.filial,
             nombre="Alabanza",
@@ -102,7 +102,7 @@ class MinisterioViewsTests(TestCase):
         self.assertNotContains(response, "Jovenes")
 
     def test_usuario_nacional_no_accede_modulo_operativo_de_ministerios(self):
-        usuario = self.crear_usuario("auditor", Usuario.Rol.AUDITOR_NACIONAL, self.nacional)
+        usuario = self.crear_usuario("admin_nacional", Usuario.Rol.ADMIN_NACIONAL, self.nacional)
         self.client.force_login(usuario)
 
         response = self.client.get(reverse("ministerios:list"))

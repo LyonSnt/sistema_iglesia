@@ -59,8 +59,8 @@ class EscuelaDominicalViewsTests(TestCase):
             edad_minima=13,
             edad_maxima=17,
         )
-        self.maestro = self.crear_usuario("maestro", Usuario.Rol.MAESTRO, self.filial)
-        self.maestro_otra = self.crear_usuario("maestro_otra", Usuario.Rol.MAESTRO, self.otra_filial)
+        self.maestro = self.crear_usuario("maestro", Usuario.Rol.SOLO_LECTURA, self.filial)
+        self.maestro_otra = self.crear_usuario("maestro_otra", Usuario.Rol.SOLO_LECTURA, self.otra_filial)
         self.alumno = Miembro.objects.create(
             iglesia=self.filial,
             nombres="Ana Maria",
@@ -146,7 +146,7 @@ class EscuelaDominicalViewsTests(TestCase):
         self.assertNotContains(response, "Jovenes A")
 
     def test_usuario_nacional_no_accede_modulo_operativo_de_escuela(self):
-        usuario = self.crear_usuario("auditor", Usuario.Rol.AUDITOR_NACIONAL, self.nacional)
+        usuario = self.crear_usuario("admin_nacional", Usuario.Rol.ADMIN_NACIONAL, self.nacional)
         self.client.force_login(usuario)
 
         response = self.client.get(reverse("escuela_dominical:list"))
@@ -205,7 +205,7 @@ class PromocionEscuelaDominicalTests(TestCase):
         self.maestro = Usuario.objects.create_user(
             username="maestro_promocion",
             password="Cambiar12345!",
-            rol=Usuario.Rol.MAESTRO,
+            rol=Usuario.Rol.SOLO_LECTURA,
             iglesia=self.iglesia,
         )
 
@@ -356,7 +356,7 @@ class EscuelaDominicalViewsContinuacionTests(TestCase):
         self.assertEqual(ClaseEscuelaDominical.objects.get(nombre="Primarios B").iglesia, self.filial)
 
     def test_maestro_solo_ve_sus_clases(self):
-        otro_maestro = self.crear_usuario("otro_maestro", Usuario.Rol.MAESTRO, self.filial)
+        otro_maestro = self.crear_usuario("otro_maestro", Usuario.Rol.SOLO_LECTURA, self.filial)
         ClaseEscuelaDominical.objects.create(
             iglesia=self.filial,
             nombre="Primarios B",

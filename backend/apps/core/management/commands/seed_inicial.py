@@ -49,25 +49,22 @@ class Command(BaseCommand):
             ("zonas", "zona", ("view",)),
             ("auditoria", "registroauditoria", ("view",)),
         ),
-        Usuario.Rol.PRESIDENTE_NACIONAL: (
-            ("auditoria", "registroauditoria", ("view",)),
-        ),
-        Usuario.Rol.VICEPRESIDENTE_NACIONAL: (
-            ("auditoria", "registroauditoria", ("view",)),
-        ),
-        Usuario.Rol.SECRETARIO_NACIONAL: (),
-        Usuario.Rol.TESORERO_NACIONAL: (),
-        Usuario.Rol.AUDITOR_NACIONAL: (
-            ("auditoria", "registroauditoria", ("view",)),
-        ),
         Usuario.Rol.PASTOR_FILIAL: (),
         Usuario.Rol.ENCARGADO_FILIAL: (),
         Usuario.Rol.SECRETARIO_FILIAL: (),
         Usuario.Rol.TESORERO_FILIAL: (),
-        Usuario.Rol.LIDER_MINISTERIO: (),
-        Usuario.Rol.MAESTRO: (),
         Usuario.Rol.SOLO_LECTURA: (),
     }
+
+    GRUPOS_OBSOLETOS = (
+        "PRESIDENTE_NACIONAL",
+        "VICEPRESIDENTE_NACIONAL",
+        "SECRETARIO_NACIONAL",
+        "TESORERO_NACIONAL",
+        "AUDITOR_NACIONAL",
+        "LIDER_MINISTERIO",
+        "MAESTRO",
+    )
 
     def handle(self, *args, **options):
         with transaction.atomic():
@@ -149,6 +146,7 @@ class Command(BaseCommand):
         self._log(created, "periodo", periodo.nombre)
 
     def _crear_grupos_y_permisos(self):
+        Group.objects.filter(name__in=self.GRUPOS_OBSOLETOS).delete()
         permisos = list(Permission.objects.select_related("content_type"))
         for rol, acciones in self.PERMISOS_POR_ROL.items():
             group, created = Group.objects.get_or_create(name=rol)

@@ -1,6 +1,6 @@
 # Estado Actual
 
-Ultima actualizacion: 2026-06-22.
+Ultima actualizacion: 2026-06-23.
 
 ## Resumen
 
@@ -21,7 +21,10 @@ solo de esa filial.
 - `SUPERADMIN` es el unico rol con acceso tecnico total.
 - `ADMIN_NACIONAL` solo gestiona filiales, autoridades iniciales, reportes y
   consulta de auditoria; no accede a modulos operativos.
-- Los demas roles nacionales consumen reportes y auditoria segun su funcion.
+- Los cargos organizacionales nacionales se modelan como cargos/asignaciones,
+  no como roles base del sistema.
+- Lideres de ministerio y maestros reciben acceso por asignacion concreta, no
+  por rol principal.
 - `PRUEBAS` sera una iglesia filial de validacion dentro de la misma base.
 - El backend Django vive en `backend/`.
 - Las apps Django viven en `backend/apps/`.
@@ -71,6 +74,8 @@ solo de esa filial.
   - `/api/ministerios/<id>/`.
   - `/api/participaciones-ministerios/`.
   - `/api/participaciones-ministerios/<id>/`.
+  - `/api/traslados/`.
+  - `/api/traslados/<id>/`.
 - Modulo Cargos/directivas iniciado:
   - listado en `/cargos/`;
   - detalle de asignacion;
@@ -102,6 +107,16 @@ solo de esa filial.
   - PDF A4 horizontal con datos de alumno, nivel, periodo y firmantes;
   - firmas historicas de Pastor y Director de Escuela Dominical;
   - anulacion sin borrado ni reutilizacion del numero.
+- Modulo Traslados iniciado:
+  - listado funcional en `/traslados/`;
+  - solicitud de traslado desde iglesia origen hacia iglesia destino;
+  - aceptacion y rechazo por iglesia destino;
+  - anulacion por iglesia origen;
+  - cambio transaccional de iglesia del miembro solo al aceptar;
+  - desactivacion de vinculos familiares locales al completar el traslado;
+  - auditoria explicita de solicitud, aceptacion, rechazo y anulacion;
+  - API de consulta con filtros por estado, iglesias, miembro y fechas;
+  - reporte nacional en `/reportes/traslados/`.
 - HTMX preparado en plantilla base.
 - Login propio en `/login/`.
 - Logout por POST en `/logout/`.
@@ -120,7 +135,7 @@ solo de esa filial.
 - `django-axes` para proteccion contra fuerza bruta.
 - `reportlab` para generacion de certificados PDF.
 - Usuario personalizado `apps.usuarios.Usuario`.
-- Roles iniciales definidos en `Usuario.Rol`.
+- Roles de acceso vigentes definidos en `Usuario.Rol`.
 - Apps creadas segun arquitectura inicial.
 - Modelos base iniciales:
   - `Zona`.
@@ -143,6 +158,7 @@ solo de esa filial.
   - `ProcesoPromocionEscuelaDominical`.
   - `ResultadoPromocionEscuelaDominical`.
   - `CertificadoEscuelaDominical`.
+  - `TrasladoMiembro`.
   - `RegistroAuditoria`.
 - Admin basico para modelos iniciales.
 - Migraciones iniciales creadas y aplicadas.
@@ -184,9 +200,9 @@ python manage.py seed_usuarios_prueba
 
 - Usuarios nacionales creados:
   - `admin_nacional`: `ADMIN_NACIONAL`, iglesia `NACIONAL`.
-  - `auditor_nacional`: `AUDITOR_NACIONAL`, iglesia `NACIONAL`.
 - Usuarios filiales creados:
   - `pastor_pruebas`: `PASTOR_FILIAL`, iglesia `PRUEBAS`.
+  - `encargado_pruebas`: `ENCARGADO_FILIAL`, iglesia `PRUEBAS`.
   - `secretario_pruebas`: `SECRETARIO_FILIAL`, iglesia `PRUEBAS`.
   - `tesorero_pruebas`: `TESORERO_FILIAL`, iglesia `PRUEBAS`.
   - `lectura_pruebas`: `SOLO_LECTURA`, iglesia `PRUEBAS`.
@@ -237,17 +253,10 @@ Se creo un grupo Django por cada rol inicial:
 
 - `SUPERADMIN`
 - `ADMIN_NACIONAL`
-- `PRESIDENTE_NACIONAL`
-- `VICEPRESIDENTE_NACIONAL`
-- `SECRETARIO_NACIONAL`
-- `TESORERO_NACIONAL`
-- `AUDITOR_NACIONAL`
 - `PASTOR_FILIAL`
 - `ENCARGADO_FILIAL`
 - `SECRETARIO_FILIAL`
 - `TESORERO_FILIAL`
-- `LIDER_MINISTERIO`
-- `MAESTRO`
 - `SOLO_LECTURA`
 
 ## Validado
@@ -263,6 +272,8 @@ Se creo un grupo Django por cada rol inicial:
 - Existe comando para normalizar el superusuario tecnico:
   `python manage.py normalizar_superusuario --username admin`.
 - Helpers/decoradores de permisos funcionales en `apps.core.permisos`.
+- Roles de acceso simplificados: cargos organizacionales y asignaciones
+  funcionales ya no se modelan como roles principales de usuario.
 - Separacion estricta entre `SUPERADMIN` y roles nacionales validada en
   dashboard, vistas, API y Django Admin.
 - Lideres de ministerio limitados a ministerios asignados; pueden operar
@@ -319,6 +330,10 @@ Se creo un grupo Django por cada rol inicial:
   cortes de edad, promociones, egreso a Jovenes e idempotencia.
 - Tests de `apps.certificados` cubren elegibilidad, numeracion, firmas vigentes,
   emision idempotente, PDF, permisos, aislamiento por iglesia y anulacion.
+- Tests de `apps.traslados` cubren solicitud, permisos, alcance por iglesia,
+  aceptacion, rechazo, anulacion, auditoria y cambio transaccional de iglesia.
+- Tests de `apps.api` y `apps.reportes` cubren consulta nacional/local de
+  traslados, filtros, detalle y aislamiento por iglesia.
 - Tests de `apps.auditoria` cubren intervencion nacional sobre filiales y
   ausencia de auditoria nacional en la gestion propia de una filial.
 - Tailwind ya no usa CDN.
@@ -326,7 +341,10 @@ Se creo un grupo Django por cada rol inicial:
 - Migracion `escuela_dominical.0003` aplicada para procesos y resultados de
   promocion.
 - Migracion `certificados.0001` aplicada para certificados de Escuela Dominical.
-- Suite completa validada: 157 tests aprobados.
+- Migracion `traslados.0001` aplicada para traslados de miembros.
+- Migracion `usuarios.0004` aplicada para simplificar roles y mapear roles
+  obsoletos.
+- Suite completa validada: 176 tests aprobados.
 - `python manage.py check` sin issues y sin migraciones pendientes.
 
 ## Pendiente Proximo Recomendado
@@ -335,7 +353,7 @@ Siguiente bloque recomendado:
 
 1. Validar el diseno PDF con la plantilla institucional e incorporar logotipo
    o fondo oficial cuando se entregue el archivo fuente.
-2. Continuar con el flujo de traslados entre iglesias.
+2. Avanzar con Finanzas locales: ingresos, egresos y cierre mensual.
 
 No conviene iniciar vistas de modulos grandes hasta cerrar permisos y acceso por
 iglesia.
