@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}{{ movimiento.concepto.nombre }} | Ecclesia{% endblock %}
+
+{% block content %}
+  <section class="space-y-6">
+    <div class="flex flex-col gap-4 border-b border-slate-200 pb-6 md:flex-row md:items-end md:justify-between">
+      <div>
+        <a class="text-sm font-medium text-slate-500 hover:text-slate-950" href="{% url 'finanzas:list' %}">Finanzas locales</a>
+        <h1 class="mt-2 text-3xl font-semibold text-slate-950">{{ movimiento.concepto.nombre }}</h1>
+        <p class="mt-2 text-sm text-slate-600">{{ movimiento.iglesia.codigo }} - {{ movimiento.iglesia.nombre }}</p>
+      </div>
+      {% if puede_anular %}
+        <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800" href="{% url 'finanzas:annul' movimiento.pk %}">Anular</a>
+      {% endif %}
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-3">
+      <div class="rounded border border-slate-200 bg-white p-5">
+        <h2 class="font-semibold text-slate-950">Tipo</h2>
+        <p class="mt-3 text-sm text-slate-700">{{ movimiento.get_tipo_display }}</p>
+      </div>
+      <div class="rounded border border-slate-200 bg-white p-5">
+        <h2 class="font-semibold text-slate-950">Monto</h2>
+        <p class="mt-3 text-sm text-slate-700">$ {{ movimiento.monto|floatformat:2 }}</p>
+      </div>
+      <div class="rounded border border-slate-200 bg-white p-5">
+        <h2 class="font-semibold text-slate-950">Estado</h2>
+        <p class="mt-3 text-sm text-slate-700">{{ movimiento.get_estado_display }}</p>
+      </div>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2">
+      <div class="rounded border border-slate-200 bg-white p-5">
+        <h2 class="font-semibold text-slate-950">Registro</h2>
+        <dl class="mt-4 space-y-3 text-sm">
+          <div><dt class="text-slate-500">Fecha</dt><dd>{{ movimiento.fecha|date:"Y-m-d" }}</dd></div>
+          <div><dt class="text-slate-500">Comprobante</dt><dd>{{ movimiento.numero_comprobante|default:"-" }}</dd></div>
+          <div><dt class="text-slate-500">Registrado por</dt><dd>{{ movimiento.registrado_por }}</dd></div>
+        </dl>
+      </div>
+      <div class="rounded border border-slate-200 bg-white p-5">
+        <h2 class="font-semibold text-slate-950">Descripcion</h2>
+        <p class="mt-3 whitespace-pre-line text-sm leading-6 text-slate-700">{{ movimiento.descripcion }}</p>
+      </div>
+    </div>
+
+    {% if movimiento.estado == "ANULADO" %}
+      <div class="rounded border border-slate-200 bg-white p-5">
+        <h2 class="font-semibold text-slate-950">Anulacion</h2>
+        <dl class="mt-4 space-y-3 text-sm">
+          <div><dt class="text-slate-500">Fecha</dt><dd>{{ movimiento.fecha_anulacion|date:"Y-m-d" }}</dd></div>
+          <div><dt class="text-slate-500">Anulado por</dt><dd>{{ movimiento.anulado_por }}</dd></div>
+          <div><dt class="text-slate-500">Motivo</dt><dd>{{ movimiento.motivo_anulacion }}</dd></div>
+        </dl>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

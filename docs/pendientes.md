@@ -31,9 +31,14 @@
   [x] finalizacion; [x] API de consulta; pendiente documentos adjuntos.
 - Ministerios: [x] listado; [x] detalle; [x] creacion y edicion;
   [x] participaciones; [x] finalizacion de participaciones; pendiente API.
-- Traslados: flujo origen, destino y auditoria nacional.
-- Finanzas: ingresos, egresos y cierre mensual.
-- Aportes nacionales: cuenta corriente filial-nacional.
+- Traslados: [x] solicitud origen-destino; [x] aprobacion/rechazo por destino;
+  [x] cancelacion por origen; [x] cambio de iglesia al aprobar; pendiente
+  documentos adjuntos y reportes de trazabilidad.
+- Finanzas: [x] conceptos; [x] ingresos; [x] egresos; [x] anulacion;
+  [x] cierre mensual; pendiente documentos adjuntos y reportes.
+- Aportes nacionales: [x] generacion desde cierre mensual; [x] calculo por
+  porcentaje; [x] consulta por filial; [x] registro de pago; [x] numeracion de
+  recibos; pendiente recibos PDF y cuenta corriente detallada.
 - Certificados: [x] numeracion, [x] emision individual y por lote,
   [x] PDF de Escuela Dominical, [x] anulacion; pendiente validar el fondo y
   logotipo institucional, y desarrollar otros tipos documentales.

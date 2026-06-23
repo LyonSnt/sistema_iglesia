@@ -102,6 +102,32 @@ solo de esa filial.
   - PDF A4 horizontal con datos de alumno, nivel, periodo y firmantes;
   - firmas historicas de Pastor y Director de Escuela Dominical;
   - anulacion sin borrado ni reutilizacion del numero.
+- Modulo Traslados iniciado:
+  - listado en `/traslados/`;
+  - solicitud de traslado entre iglesias filiales;
+  - visibilidad para iglesia origen y destino;
+  - aprobacion o rechazo por iglesia destino;
+  - cancelacion por iglesia origen;
+  - al aprobar, el miembro cambia a la iglesia destino conservando historial.
+- Modulo Finanzas locales iniciado:
+  - listado en `/finanzas/`;
+  - conceptos financieros por iglesia y tipo ingreso/egreso;
+  - registro de movimientos de ingreso y egreso;
+  - resumen de ingresos, egresos y saldo segun filtros;
+  - detalle de movimiento;
+  - anulacion sin borrado fisico;
+  - cierres mensuales en `/finanzas/cierres/`;
+  - totales congelados por iglesia, anio y mes;
+  - bloqueo de nuevos movimientos y anulaciones dentro de meses cerrados.
+- Modulo Aportes nacionales iniciado:
+  - listado en `/aportes-nacionales/`;
+  - generacion de aporte desde cierres mensuales cerrados;
+  - porcentaje inicial desde `APORTE_NACIONAL_PORCENTAJE`;
+  - monto base congelado desde ingresos del cierre;
+  - consulta por filial con alcance por iglesia;
+  - registro de pago por `SUPERADMIN`;
+  - numeracion transaccional de recibos;
+  - resumen de pendiente y pagado.
 - HTMX preparado en plantilla base.
 - Login propio en `/login/`.
 - Logout por POST en `/logout/`.
@@ -143,6 +169,10 @@ solo de esa filial.
   - `ProcesoPromocionEscuelaDominical`.
   - `ResultadoPromocionEscuelaDominical`.
   - `CertificadoEscuelaDominical`.
+  - `ConceptoFinanciero`.
+  - `MovimientoFinanciero`.
+  - `CierreMensualFinanciero`.
+  - `AporteNacional`.
   - `RegistroAuditoria`.
 - Admin basico para modelos iniciales.
 - Migraciones iniciales creadas y aplicadas.
@@ -230,6 +260,8 @@ El comando `seed_inicial` fue ejecutado en la base local.
 - `ESCUELA_DOMINICAL_DIA_CORTE`.
 - `CERTIFICADOS_PREFIJO`.
 - `CERTIFICADOS_SECUENCIAL_INICIAL`.
+- `APORTES_RECIBOS_PREFIJO`.
+- `APORTES_RECIBOS_SECUENCIAL_INICIAL`.
 
 ### Grupos
 
@@ -319,6 +351,15 @@ Se creo un grupo Django por cada rol inicial:
   cortes de edad, promociones, egreso a Jovenes e idempotencia.
 - Tests de `apps.certificados` cubren elegibilidad, numeracion, firmas vigentes,
   emision idempotente, PDF, permisos, aislamiento por iglesia y anulacion.
+- Tests de `apps.traslados` cubren listado, creacion, permisos, aislamiento por
+  iglesia, aprobacion, rechazo, cancelacion y cambio de iglesia del miembro.
+- Tests de `apps.finanzas` cubren conceptos, movimientos, permisos, lectura de
+  pastor, gestion de tesorero, aislamiento por iglesia, validaciones, anulacion,
+  cierres mensuales, totales congelados, duplicados y bloqueo por mes cerrado.
+- Tests de `apps.aportes_nacionales` cubren generacion desde cierre mensual,
+  porcentaje parametrizado, permisos, no duplicar aportes y aislamiento por
+  iglesia, registro de pago, numeracion de recibos, totales pendiente/pagado y
+  seed de parametros documentales.
 - Tests de `apps.auditoria` cubren intervencion nacional sobre filiales y
   ausencia de auditoria nacional en la gestion propia de una filial.
 - Tailwind ya no usa CDN.
@@ -326,7 +367,7 @@ Se creo un grupo Django por cada rol inicial:
 - Migracion `escuela_dominical.0003` aplicada para procesos y resultados de
   promocion.
 - Migracion `certificados.0001` aplicada para certificados de Escuela Dominical.
-- Suite completa validada: 157 tests aprobados.
+- Suite completa validada: 196 tests aprobados.
 - `python manage.py check` sin issues y sin migraciones pendientes.
 
 ## Pendiente Proximo Recomendado
@@ -335,7 +376,8 @@ Siguiente bloque recomendado:
 
 1. Validar el diseno PDF con la plantilla institucional e incorporar logotipo
    o fondo oficial cuando se entregue el archivo fuente.
-2. Continuar con el flujo de traslados entre iglesias.
+2. Completar finanzas locales con documentos adjuntos.
+3. Completar aportes nacionales con recibos PDF y cuenta corriente detallada.
 
 No conviene iniciar vistas de modulos grandes hasta cerrar permisos y acceso por
 iglesia.

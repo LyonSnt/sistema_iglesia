@@ -76,11 +76,13 @@ class DashboardView(PermisoModuloMixin, TemplateView):
             "codigo": MODULO_FINANZAS,
             "nombre": "Finanzas locales",
             "descripcion": "Ingresos, egresos y cierres.",
+            "url_name": "finanzas:list",
         },
         {
             "codigo": MODULO_APORTES_NACIONALES,
             "nombre": "Aportes nacionales",
             "descripcion": "Cuenta filial-nacional y recibos.",
+            "url_name": "aportes_nacionales:list",
         },
         {
             "codigo": MODULO_CERTIFICADOS,
@@ -92,6 +94,7 @@ class DashboardView(PermisoModuloMixin, TemplateView):
             "codigo": MODULO_TRASLADOS,
             "nombre": "Traslados",
             "descripcion": "Movimiento de miembros entre iglesias.",
+            "url_name": "traslados:list",
         },
         {
             "codigo": MODULO_INVENTARIO,

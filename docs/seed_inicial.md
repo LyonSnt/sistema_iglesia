@@ -50,6 +50,9 @@ El comando puede ejecutarse varias veces. No duplica registros existentes.
 - `CERTIFICADOS_PREFIJO`: prefijo documental.
 - `CERTIFICADOS_SECUENCIAL_INICIAL`: siguiente numero disponible; se incrementa
   al emitir un certificado.
+- `APORTES_RECIBOS_PREFIJO`: prefijo documental para recibos de aportes.
+- `APORTES_RECIBOS_SECUENCIAL_INICIAL`: siguiente numero disponible; se
+  incrementa al registrar un pago de aporte nacional.
 
 ### Grupos
 

@@ -5,14 +5,17 @@ from django.urls import include, path
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("aportes-nacionales/", include("apps.aportes_nacionales.urls")),
     path("api/", include("apps.api.urls")),
     path("cargos/", include("apps.cargos.urls")),
     path("certificados/", include("apps.certificados.urls")),
     path("escuela-dominical/", include("apps.escuela_dominical.urls")),
     path("familias/", include("apps.familias.urls")),
+    path("finanzas/", include("apps.finanzas.urls")),
     path("iglesias/", include("apps.iglesias.urls")),
     path("miembros/", include("apps.miembros.urls")),
     path("ministerios/", include("apps.ministerios.urls")),
+    path("traslados/", include("apps.traslados.urls")),
     path("usuarios/", include("apps.usuarios.urls")),
     path("", include("apps.core.urls")),
 ]

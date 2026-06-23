@@ -37,6 +37,8 @@ class Command(BaseCommand):
 
     PARAMETROS = (
         ("APORTE_NACIONAL_PORCENTAJE", "Porcentaje de aporte nacional", "10", ParametroGeneral.TipoDato.DECIMAL),
+        ("APORTES_RECIBOS_PREFIJO", "Prefijo de recibos de aportes", "AP", ParametroGeneral.TipoDato.TEXTO),
+        ("APORTES_RECIBOS_SECUENCIAL_INICIAL", "Secuencial inicial de recibos de aportes", "1", ParametroGeneral.TipoDato.ENTERO),
         ("ESCUELA_DOMINICAL_DIA_CORTE", "Dia de corte de Escuela Dominical", "15", ParametroGeneral.TipoDato.ENTERO),
         ("CERTIFICADOS_PREFIJO", "Prefijo de certificados", "EC", ParametroGeneral.TipoDato.TEXTO),
         ("CERTIFICADOS_SECUENCIAL_INICIAL", "Secuencial inicial de certificados", "1", ParametroGeneral.TipoDato.ENTERO),
