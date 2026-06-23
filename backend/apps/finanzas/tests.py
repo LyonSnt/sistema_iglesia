@@ -109,7 +109,7 @@ class FinanzasLocalesTests(TestCase):
         self.assertContains(response, "Movimiento local")
         self.assertNotContains(response, "Movimiento externo")
 
-    def test_pastor_consulta_pero_no_crea(self):
+    def test_pastor_consulta_y_gestiona_finanzas(self):
         usuario = self.crear_usuario("pastor", Usuario.Rol.PASTOR_FILIAL, self.filial)
         self.client.force_login(usuario)
 
@@ -117,7 +117,7 @@ class FinanzasLocalesTests(TestCase):
         response_create = self.client.get(reverse("finanzas:create"))
 
         self.assertEqual(response_list.status_code, 200)
-        self.assertEqual(response_create.status_code, 403)
+        self.assertEqual(response_create.status_code, 200)
 
     def test_usuario_sin_permiso_no_accede(self):
         usuario = self.crear_usuario("secretario", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
@@ -269,7 +269,7 @@ class FinanzasLocalesTests(TestCase):
         self.assertContains(response, "Ya existe un cierre")
         self.assertEqual(CierreMensualFinanciero.objects.filter(iglesia=self.filial, anio=2026, mes=6).count(), 1)
 
-    def test_pastor_consulta_cierres_pero_no_genera(self):
+    def test_pastor_consulta_y_genera_cierres(self):
         usuario = self.crear_usuario("pastor", Usuario.Rol.PASTOR_FILIAL, self.filial)
         self.client.force_login(usuario)
 
@@ -277,7 +277,7 @@ class FinanzasLocalesTests(TestCase):
         response_create = self.client.get(reverse("finanzas:cierre-create"))
 
         self.assertEqual(response_list.status_code, 200)
-        self.assertEqual(response_create.status_code, 403)
+        self.assertEqual(response_create.status_code, 200)
 
     def test_cierres_respetan_aislamiento_por_iglesia(self):
         usuario_base = self.crear_usuario("tesorero_base", Usuario.Rol.TESORERO_FILIAL, self.filial)

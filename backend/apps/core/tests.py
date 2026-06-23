@@ -50,7 +50,7 @@ class PermisosCoreTests(TestCase):
         roles_ver = obtener_roles_permitidos(MODULO_MIEMBROS, ACCION_VER)
 
         self.assertIn(Usuario.Rol.SECRETARIO_FILIAL, roles_ver)
-        self.assertNotIn(Usuario.Rol.AUDITOR_NACIONAL, roles_ver)
+        self.assertNotIn(Usuario.Rol.ADMIN_NACIONAL, roles_ver)
 
     def test_usuario_filial_puede_gestionar_modulo_autorizado(self):
         usuario = self.crear_usuario(
@@ -72,7 +72,7 @@ class PermisosCoreTests(TestCase):
         self.assertFalse(usuario_puede_acceder_iglesia(usuario, self.otra_filial))
 
     def test_usuario_nacional_accede_a_cualquier_iglesia(self):
-        usuario = self.crear_usuario("auditor", Usuario.Rol.AUDITOR_NACIONAL, self.nacional)
+        usuario = self.crear_usuario("admin_nacional", Usuario.Rol.ADMIN_NACIONAL, self.nacional)
 
         self.assertTrue(usuario_puede_acceder_iglesia(usuario, self.filial))
         self.assertTrue(usuario_puede_acceder_iglesia(usuario, self.otra_filial))

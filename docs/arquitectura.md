@@ -57,18 +57,16 @@ Los roles estan definidos en `Usuario.Rol`:
 
 - `SUPERADMIN`
 - `ADMIN_NACIONAL`
-- `PRESIDENTE_NACIONAL`
-- `VICEPRESIDENTE_NACIONAL`
-- `SECRETARIO_NACIONAL`
-- `TESORERO_NACIONAL`
-- `AUDITOR_NACIONAL`
 - `PASTOR_FILIAL`
 - `ENCARGADO_FILIAL`
 - `SECRETARIO_FILIAL`
 - `TESORERO_FILIAL`
-- `LIDER_MINISTERIO`
-- `MAESTRO`
 - `SOLO_LECTURA`
+
+Los cargos organizacionales como Presidente, Vicepresidente, Auditor, Pastor,
+Encargado, Lider de ministerio o Maestro se registran mediante `Cargo`,
+`AsignacionCargo` o asignaciones funcionales especificas como `Ministerio.lider`
+y `ClaseEscuelaDominical.maestro`. No todos los cargos son roles de acceso.
 
 ## Infraestructura
 

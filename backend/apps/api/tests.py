@@ -6,6 +6,7 @@ from apps.familias.models import Familia, Matrimonio, MiembroFamilia
 from apps.iglesias.models import Iglesia
 from apps.miembros.models import Miembro
 from apps.ministerios.models import Ministerio, ParticipacionMinisterio
+from apps.traslados.models import TrasladoMiembro
 from apps.usuarios.models import Usuario
 
 
@@ -110,7 +111,7 @@ class ApiConsultaMiembrosFamiliasTests(APITestCase):
         self.assertNotIn(self.miembro_otra.id, ids)
 
     def test_usuario_nacional_no_accede_api_operativa_de_miembros(self):
-        usuario = self.crear_usuario("auditor", Usuario.Rol.AUDITOR_NACIONAL, self.nacional)
+        usuario = self.crear_usuario("admin_nacional", Usuario.Rol.ADMIN_NACIONAL, self.nacional)
         self.client.force_authenticate(usuario)
 
         response = self.client.get(reverse("api:miembro-list"))
@@ -233,7 +234,7 @@ class ApiConsultaCargosTests(APITestCase):
         self.assertNotIn("Presidente", nombres)
 
     def test_usuario_nacional_no_accede_api_operativa_de_cargos(self):
-        usuario = self.crear_usuario("auditor", Usuario.Rol.AUDITOR_NACIONAL, self.nacional)
+        usuario = self.crear_usuario("admin_nacional", Usuario.Rol.ADMIN_NACIONAL, self.nacional)
         self.client.force_authenticate(usuario)
 
         response = self.client.get(reverse("api:cargo-list"))
@@ -252,7 +253,7 @@ class ApiConsultaCargosTests(APITestCase):
         self.assertNotIn(self.asignacion_otra.id, ids)
 
     def test_usuario_nacional_no_accede_api_de_asignaciones(self):
-        usuario = self.crear_usuario("auditor", Usuario.Rol.AUDITOR_NACIONAL, self.nacional)
+        usuario = self.crear_usuario("admin_nacional", Usuario.Rol.ADMIN_NACIONAL, self.nacional)
         self.client.force_authenticate(usuario)
 
         response = self.client.get(reverse("api:asignacion-cargo-list"))
@@ -285,6 +286,119 @@ class ApiConsultaCargosTests(APITestCase):
 
         self.assertEqual(response.status_code, 403)
 
+
+class ApiConsultaTrasladosTests(APITestCase):
+    def setUp(self):
+        self.nacional = Iglesia.objects.create(
+            codigo="NACIONAL",
+            nombre="Iglesia Nacional",
+            tipo=Iglesia.Tipo.NACIONAL,
+        )
+        self.origen = Iglesia.objects.create(
+            codigo="ORI",
+            nombre="Iglesia Origen",
+            tipo=Iglesia.Tipo.FILIAL,
+            iglesia_matriz=self.nacional,
+        )
+        self.destino = Iglesia.objects.create(
+            codigo="DES",
+            nombre="Iglesia Destino",
+            tipo=Iglesia.Tipo.FILIAL,
+            iglesia_matriz=self.nacional,
+        )
+        self.otra = Iglesia.objects.create(
+            codigo="OTRA",
+            nombre="Otra Iglesia",
+            tipo=Iglesia.Tipo.FILIAL,
+            iglesia_matriz=self.nacional,
+        )
+        self.miembro = Miembro.objects.create(
+            iglesia=self.origen,
+            nombres="Ana Maria",
+            apellidos="Lopez",
+            cedula="0404040404",
+            sexo=Miembro.Sexo.FEMENINO,
+        )
+        self.miembro_otra = Miembro.objects.create(
+            iglesia=self.otra,
+            nombres="Carlos",
+            apellidos="Mora",
+            cedula="0505050505",
+            sexo=Miembro.Sexo.MASCULINO,
+        )
+        self.solicitante = self.crear_usuario("solicitante", Usuario.Rol.SECRETARIO_FILIAL, self.origen)
+        self.traslado = TrasladoMiembro.objects.create(
+            miembro=self.miembro,
+            iglesia_origen=self.origen,
+            iglesia_destino=self.destino,
+            motivo="Cambio de domicilio",
+            solicitado_por=self.solicitante,
+        )
+        self.traslado_otra = TrasladoMiembro.objects.create(
+            miembro=self.miembro_otra,
+            iglesia_origen=self.otra,
+            iglesia_destino=self.destino,
+            estado=TrasladoMiembro.Estado.RECHAZADO,
+            motivo="No procede",
+            solicitado_por=self.crear_usuario("solicitante_otra", Usuario.Rol.SECRETARIO_FILIAL, self.otra),
+        )
+
+    def crear_usuario(self, username, rol, iglesia):
+        return Usuario.objects.create_user(
+            username=username,
+            password="Cambiar12345!",
+            rol=rol,
+            iglesia=iglesia,
+        )
+
+    def test_filial_ve_traslados_donde_es_origen_o_destino(self):
+        usuario = self.crear_usuario("pastor_origen", Usuario.Rol.PASTOR_FILIAL, self.origen)
+        self.client.force_authenticate(usuario)
+
+        response = self.client.get(reverse("api:traslado-list"))
+
+        self.assertEqual(response.status_code, 200)
+        ids = {item["id"] for item in response.data}
+        self.assertIn(self.traslado.id, ids)
+        self.assertNotIn(self.traslado_otra.id, ids)
+
+    def test_destino_ve_traslados_recibidos_de_varias_iglesias(self):
+        usuario = self.crear_usuario("pastor_destino", Usuario.Rol.PASTOR_FILIAL, self.destino)
+        self.client.force_authenticate(usuario)
+
+        response = self.client.get(reverse("api:traslado-list"))
+
+        self.assertEqual(response.status_code, 200)
+        ids = {item["id"] for item in response.data}
+        self.assertIn(self.traslado.id, ids)
+        self.assertIn(self.traslado_otra.id, ids)
+
+    def test_admin_nacional_ve_consolidado_y_filtra_por_estado(self):
+        usuario = self.crear_usuario("admin_nacional", Usuario.Rol.ADMIN_NACIONAL, self.nacional)
+        self.client.force_authenticate(usuario)
+
+        response = self.client.get(reverse("api:traslado-list"), {"estado": TrasladoMiembro.Estado.RECHAZADO})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item["id"] for item in response.data], [self.traslado_otra.id])
+
+    def test_detalle_respeta_alcance_por_iglesia(self):
+        usuario = self.crear_usuario("pastor_origen", Usuario.Rol.PASTOR_FILIAL, self.origen)
+        self.client.force_authenticate(usuario)
+
+        response = self.client.get(reverse("api:traslado-detail", args=[self.traslado.pk]))
+        response_otra = self.client.get(reverse("api:traslado-detail", args=[self.traslado_otra.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response_otra.status_code, 404)
+
+    def test_rol_sin_permiso_no_accede_api_traslados(self):
+        usuario = self.crear_usuario("tesorero", Usuario.Rol.TESORERO_FILIAL, self.origen)
+        self.client.force_authenticate(usuario)
+
+        response = self.client.get(reverse("api:traslado-list"))
+
+        self.assertEqual(response.status_code, 403)
 
 class ApiConsultaMinisteriosTests(APITestCase):
     def setUp(self):
@@ -319,8 +433,8 @@ class ApiConsultaMinisteriosTests(APITestCase):
             cedula="0202020202",
             sexo=Miembro.Sexo.MASCULINO,
         )
-        self.lider = self.crear_usuario("lider_api", Usuario.Rol.LIDER_MINISTERIO, self.filial)
-        self.otro_lider = self.crear_usuario("otro_lider_api", Usuario.Rol.LIDER_MINISTERIO, self.filial)
+        self.lider = self.crear_usuario("lider_api", Usuario.Rol.SOLO_LECTURA, self.filial)
+        self.otro_lider = self.crear_usuario("otro_lider_api", Usuario.Rol.SOLO_LECTURA, self.filial)
         self.ministerio = Ministerio.objects.create(
             iglesia=self.filial,
             nombre="Ministerio de Alabanza",
@@ -368,7 +482,7 @@ class ApiConsultaMinisteriosTests(APITestCase):
         self.assertEqual(response.data[0]["participaciones"][0]["id"], self.participacion.id)
 
     def test_usuario_nacional_no_accede_api_operativa_de_ministerios(self):
-        usuario = self.crear_usuario("auditor", Usuario.Rol.AUDITOR_NACIONAL, self.nacional)
+        usuario = self.crear_usuario("admin_nacional", Usuario.Rol.ADMIN_NACIONAL, self.nacional)
         self.client.force_authenticate(usuario)
 
         response = self.client.get(reverse("api:ministerio-list"))

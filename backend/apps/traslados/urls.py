@@ -1,21 +1,14 @@
 from django.urls import path
 
-from .views import (
-    AprobarTrasladoView,
-    CancelarTrasladoView,
-    RechazarTrasladoView,
-    TrasladoCreateView,
-    TrasladoDetailView,
-    TrasladoListView,
-)
+from . import views
 
 app_name = "traslados"
 
 urlpatterns = [
-    path("", TrasladoListView.as_view(), name="list"),
-    path("crear/", TrasladoCreateView.as_view(), name="create"),
-    path("<int:pk>/", TrasladoDetailView.as_view(), name="detail"),
-    path("<int:pk>/aprobar/", AprobarTrasladoView.as_view(), name="approve"),
-    path("<int:pk>/rechazar/", RechazarTrasladoView.as_view(), name="reject"),
-    path("<int:pk>/cancelar/", CancelarTrasladoView.as_view(), name="cancel"),
+    path("", views.TrasladoListView.as_view(), name="list"),
+    path("crear/", views.TrasladoCreateView.as_view(), name="create"),
+    path("<int:pk>/", views.TrasladoDetailView.as_view(), name="detail"),
+    path("<int:pk>/aceptar/", views.AceptarTrasladoView.as_view(), name="aceptar"),
+    path("<int:pk>/rechazar/", views.RechazarTrasladoView.as_view(), name="rechazar"),
+    path("<int:pk>/anular/", views.AnularTrasladoView.as_view(), name="anular"),
 ]

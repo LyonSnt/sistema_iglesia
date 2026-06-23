@@ -1,6 +1,6 @@
 # Estado Actual
 
-Ultima actualizacion: 2026-06-22.
+Ultima actualizacion: 2026-06-23.
 
 ## Resumen
 
@@ -21,7 +21,10 @@ solo de esa filial.
 - `SUPERADMIN` es el unico rol con acceso tecnico total.
 - `ADMIN_NACIONAL` solo gestiona filiales, autoridades iniciales, reportes y
   consulta de auditoria; no accede a modulos operativos.
-- Los demas roles nacionales consumen reportes y auditoria segun su funcion.
+- Los cargos organizacionales nacionales se modelan como cargos/asignaciones,
+  no como roles base del sistema.
+- Lideres de ministerio y maestros reciben acceso por asignacion concreta, no
+  por rol principal.
 - `PRUEBAS` sera una iglesia filial de validacion dentro de la misma base.
 - El backend Django vive en `backend/`.
 - Las apps Django viven en `backend/apps/`.
@@ -71,6 +74,8 @@ solo de esa filial.
   - `/api/ministerios/<id>/`.
   - `/api/participaciones-ministerios/`.
   - `/api/participaciones-ministerios/<id>/`.
+  - `/api/traslados/`.
+  - `/api/traslados/<id>/`.
 - Modulo Cargos/directivas iniciado:
   - listado en `/cargos/`;
   - detalle de asignacion;
@@ -105,10 +110,10 @@ solo de esa filial.
 - Modulo Traslados iniciado:
   - listado en `/traslados/`;
   - solicitud de traslado entre iglesias filiales;
-  - visibilidad para iglesia origen y destino;
-  - aprobacion o rechazo por iglesia destino;
-  - cancelacion por iglesia origen;
-  - al aprobar, el miembro cambia a la iglesia destino conservando historial.
+  - aceptacion, rechazo y anulacion segun origen/destino;
+  - movimiento del miembro a la iglesia destino al aceptar;
+  - auditoria explicita del flujo de traslado;
+  - reporte inicial de traslados en `/reportes/traslados/`.
 - Modulo Finanzas locales iniciado:
   - listado en `/finanzas/`;
   - conceptos financieros por iglesia y tipo ingreso/egreso;
@@ -146,7 +151,7 @@ solo de esa filial.
 - `django-axes` para proteccion contra fuerza bruta.
 - `reportlab` para generacion de certificados PDF.
 - Usuario personalizado `apps.usuarios.Usuario`.
-- Roles iniciales definidos en `Usuario.Rol`.
+- Roles de acceso vigentes definidos en `Usuario.Rol`.
 - Apps creadas segun arquitectura inicial.
 - Modelos base iniciales:
   - `Zona`.
@@ -169,6 +174,7 @@ solo de esa filial.
   - `ProcesoPromocionEscuelaDominical`.
   - `ResultadoPromocionEscuelaDominical`.
   - `CertificadoEscuelaDominical`.
+  - `TrasladoMiembro`.
   - `ConceptoFinanciero`.
   - `MovimientoFinanciero`.
   - `CierreMensualFinanciero`.
@@ -214,9 +220,9 @@ python manage.py seed_usuarios_prueba
 
 - Usuarios nacionales creados:
   - `admin_nacional`: `ADMIN_NACIONAL`, iglesia `NACIONAL`.
-  - `auditor_nacional`: `AUDITOR_NACIONAL`, iglesia `NACIONAL`.
 - Usuarios filiales creados:
   - `pastor_pruebas`: `PASTOR_FILIAL`, iglesia `PRUEBAS`.
+  - `encargado_pruebas`: `ENCARGADO_FILIAL`, iglesia `PRUEBAS`.
   - `secretario_pruebas`: `SECRETARIO_FILIAL`, iglesia `PRUEBAS`.
   - `tesorero_pruebas`: `TESORERO_FILIAL`, iglesia `PRUEBAS`.
   - `lectura_pruebas`: `SOLO_LECTURA`, iglesia `PRUEBAS`.
@@ -269,17 +275,10 @@ Se creo un grupo Django por cada rol inicial:
 
 - `SUPERADMIN`
 - `ADMIN_NACIONAL`
-- `PRESIDENTE_NACIONAL`
-- `VICEPRESIDENTE_NACIONAL`
-- `SECRETARIO_NACIONAL`
-- `TESORERO_NACIONAL`
-- `AUDITOR_NACIONAL`
 - `PASTOR_FILIAL`
 - `ENCARGADO_FILIAL`
 - `SECRETARIO_FILIAL`
 - `TESORERO_FILIAL`
-- `LIDER_MINISTERIO`
-- `MAESTRO`
 - `SOLO_LECTURA`
 
 ## Validado
@@ -295,6 +294,8 @@ Se creo un grupo Django por cada rol inicial:
 - Existe comando para normalizar el superusuario tecnico:
   `python manage.py normalizar_superusuario --username admin`.
 - Helpers/decoradores de permisos funcionales en `apps.core.permisos`.
+- Roles de acceso simplificados: cargos organizacionales y asignaciones
+  funcionales ya no se modelan como roles principales de usuario.
 - Separacion estricta entre `SUPERADMIN` y roles nacionales validada en
   dashboard, vistas, API y Django Admin.
 - Lideres de ministerio limitados a ministerios asignados; pueden operar
@@ -351,13 +352,14 @@ Se creo un grupo Django por cada rol inicial:
   cortes de edad, promociones, egreso a Jovenes e idempotencia.
 - Tests de `apps.certificados` cubren elegibilidad, numeracion, firmas vigentes,
   emision idempotente, PDF, permisos, aislamiento por iglesia y anulacion.
-- Tests de `apps.traslados` cubren listado, creacion, permisos, aislamiento por
-  iglesia, aprobacion, rechazo, cancelacion y cambio de iglesia del miembro.
-- Tests de `apps.finanzas` cubren conceptos, movimientos, permisos, lectura de
-  pastor, gestion de tesorero, aislamiento por iglesia, validaciones, anulacion,
-  cierres mensuales, totales congelados, duplicados y bloqueo por mes cerrado.
+- Tests de `apps.traslados` cubren solicitud, permisos, alcance por iglesia,
+  aceptacion, rechazo, anulacion, auditoria y movimiento del miembro.
+- Tests de `apps.reportes` cubren reporte inicial de traslados.
+- Tests de `apps.finanzas` cubren conceptos, movimientos, permisos, gestion
+  local, aislamiento por iglesia, validaciones, anulacion, cierres mensuales,
+  totales congelados, duplicados y bloqueo por mes cerrado.
 - Tests de `apps.aportes_nacionales` cubren generacion desde cierre mensual,
-  porcentaje parametrizado, permisos, no duplicar aportes y aislamiento por
+  porcentaje parametrizado, permisos, no duplicar aportes, aislamiento por
   iglesia, registro de pago, numeracion de recibos, totales pendiente/pagado y
   seed de parametros documentales.
 - Tests de `apps.auditoria` cubren intervencion nacional sobre filiales y
@@ -367,7 +369,7 @@ Se creo un grupo Django por cada rol inicial:
 - Migracion `escuela_dominical.0003` aplicada para procesos y resultados de
   promocion.
 - Migracion `certificados.0001` aplicada para certificados de Escuela Dominical.
-- Suite completa validada: 196 tests aprobados.
+- Suite completa validada: 205 tests aprobados.
 - `python manage.py check` sin issues y sin migraciones pendientes.
 
 ## Pendiente Proximo Recomendado
@@ -376,8 +378,8 @@ Siguiente bloque recomendado:
 
 1. Validar el diseno PDF con la plantilla institucional e incorporar logotipo
    o fondo oficial cuando se entregue el archivo fuente.
-2. Completar finanzas locales con documentos adjuntos.
-3. Completar aportes nacionales con recibos PDF y cuenta corriente detallada.
+2. Completar aportes nacionales con recibos PDF y cuenta corriente detallada.
+3. Continuar con inventario o reportes financieros consolidados.
 
 No conviene iniciar vistas de modulos grandes hasta cerrar permisos y acceso por
 iglesia.

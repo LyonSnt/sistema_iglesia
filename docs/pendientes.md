@@ -31,9 +31,8 @@
   [x] finalizacion; [x] API de consulta; pendiente documentos adjuntos.
 - Ministerios: [x] listado; [x] detalle; [x] creacion y edicion;
   [x] participaciones; [x] finalizacion de participaciones; pendiente API.
-- Traslados: [x] solicitud origen-destino; [x] aprobacion/rechazo por destino;
-  [x] cancelacion por origen; [x] cambio de iglesia al aprobar; pendiente
-  documentos adjuntos y reportes de trazabilidad.
+- Traslados: [x] flujo origen/destino; [x] auditoria; [x] reporte inicial;
+  pendiente documentos adjuntos.
 - Finanzas: [x] conceptos; [x] ingresos; [x] egresos; [x] anulacion;
   [x] cierre mensual; pendiente documentos adjuntos y reportes.
 - Aportes nacionales: [x] generacion desde cierre mensual; [x] calculo por

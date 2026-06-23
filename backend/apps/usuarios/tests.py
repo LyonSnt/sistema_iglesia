@@ -49,7 +49,7 @@ class GestionDelegadaUsuariosTests(TestCase):
             "cedula": "",
             "telefono": "",
             "iglesia": self.otra.pk,
-            "rol": Usuario.Rol.MAESTRO,
+            "rol": Usuario.Rol.SOLO_LECTURA,
             "password1": "Temporal12345!",
             "password2": "Temporal12345!",
         }
@@ -73,8 +73,8 @@ class GestionDelegadaUsuariosTests(TestCase):
         self.assertRedirects(response, reverse("usuarios:list"))
         usuario = Usuario.objects.get(username="maria.perez")
         self.assertEqual(usuario.iglesia, self.filial)
-        self.assertEqual(usuario.rol, Usuario.Rol.MAESTRO)
-        self.assertEqual(list(usuario.groups.values_list("name", flat=True)), [Usuario.Rol.MAESTRO])
+        self.assertEqual(usuario.rol, Usuario.Rol.SOLO_LECTURA)
+        self.assertEqual(list(usuario.groups.values_list("name", flat=True)), [Usuario.Rol.SOLO_LECTURA])
         self.assertFalse(usuario.is_staff)
         registro = RegistroAuditoria.objects.get(registro_afectado=f"usuarios.Usuario:{usuario.pk}")
         self.assertEqual(registro.usuario, self.pastor)

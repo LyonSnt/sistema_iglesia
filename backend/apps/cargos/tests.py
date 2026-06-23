@@ -90,7 +90,7 @@ class AsignacionCargoViewsTests(TestCase):
         self.assertNotContains(response, "Carlos")
 
     def test_usuario_nacional_no_accede_modulo_operativo_de_cargos(self):
-        usuario = self.crear_usuario("auditor", Usuario.Rol.AUDITOR_NACIONAL, self.nacional)
+        usuario = self.crear_usuario("admin_nacional", Usuario.Rol.ADMIN_NACIONAL, self.nacional)
         self.client.force_login(usuario)
 
         response = self.client.get(reverse("cargos:list"))

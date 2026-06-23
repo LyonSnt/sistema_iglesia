@@ -33,15 +33,11 @@ ROLES_NACIONALES = frozenset(
     {
         Usuario.Rol.SUPERADMIN,
         Usuario.Rol.ADMIN_NACIONAL,
-        Usuario.Rol.PRESIDENTE_NACIONAL,
-        Usuario.Rol.VICEPRESIDENTE_NACIONAL,
-        Usuario.Rol.SECRETARIO_NACIONAL,
-        Usuario.Rol.TESORERO_NACIONAL,
-        Usuario.Rol.AUDITOR_NACIONAL,
     }
 )
 ROLES_FILIALES = ROLES_TODOS - ROLES_NACIONALES
 ROLES_LECTURA_FILIAL = frozenset({Usuario.Rol.SOLO_LECTURA})
+ROLES_ADMIN_FILIAL = frozenset({Usuario.Rol.PASTOR_FILIAL, Usuario.Rol.ENCARGADO_FILIAL})
 
 MATRIZ_PERMISOS_MODULOS = {
     MODULO_IGLESIAS: {
@@ -96,7 +92,6 @@ MATRIZ_PERMISOS_MODULOS = {
                 Usuario.Rol.SUPERADMIN,
                 Usuario.Rol.PASTOR_FILIAL,
                 Usuario.Rol.ENCARGADO_FILIAL,
-                Usuario.Rol.LIDER_MINISTERIO,
             }
         ),
         ACCION_VER: ROLES_LECTURA_FILIAL,
@@ -107,7 +102,6 @@ MATRIZ_PERMISOS_MODULOS = {
                 Usuario.Rol.SUPERADMIN,
                 Usuario.Rol.PASTOR_FILIAL,
                 Usuario.Rol.ENCARGADO_FILIAL,
-                Usuario.Rol.MAESTRO,
             }
         ),
         ACCION_VER: ROLES_LECTURA_FILIAL,
@@ -116,10 +110,12 @@ MATRIZ_PERMISOS_MODULOS = {
         ACCION_GESTIONAR: frozenset(
             {
                 Usuario.Rol.SUPERADMIN,
+                Usuario.Rol.PASTOR_FILIAL,
+                Usuario.Rol.ENCARGADO_FILIAL,
                 Usuario.Rol.TESORERO_FILIAL,
             }
         ),
-        ACCION_VER: frozenset({Usuario.Rol.PASTOR_FILIAL}),
+        ACCION_VER: ROLES_LECTURA_FILIAL,
     },
     MODULO_APORTES_NACIONALES: {
         ACCION_GESTIONAR: frozenset(
@@ -138,6 +134,8 @@ MATRIZ_PERMISOS_MODULOS = {
         ACCION_GESTIONAR: frozenset(
             {
                 Usuario.Rol.SUPERADMIN,
+                Usuario.Rol.PASTOR_FILIAL,
+                Usuario.Rol.ENCARGADO_FILIAL,
                 Usuario.Rol.SECRETARIO_FILIAL,
             }
         ),
@@ -153,6 +151,7 @@ MATRIZ_PERMISOS_MODULOS = {
             {
                 Usuario.Rol.SUPERADMIN,
                 Usuario.Rol.PASTOR_FILIAL,
+                Usuario.Rol.ENCARGADO_FILIAL,
                 Usuario.Rol.SECRETARIO_FILIAL,
             }
         ),
@@ -162,6 +161,7 @@ MATRIZ_PERMISOS_MODULOS = {
         ACCION_GESTIONAR: frozenset(
             {
                 Usuario.Rol.SUPERADMIN,
+                Usuario.Rol.PASTOR_FILIAL,
                 Usuario.Rol.TESORERO_FILIAL,
                 Usuario.Rol.ENCARGADO_FILIAL,
             }
@@ -175,22 +175,16 @@ MATRIZ_PERMISOS_MODULOS = {
     },
     MODULO_REPORTES: {
         ACCION_GESTIONAR: frozenset({Usuario.Rol.SUPERADMIN}),
-        ACCION_VER: ROLES_TODOS,
+        ACCION_VER: frozenset({Usuario.Rol.ADMIN_NACIONAL}),
     },
     MODULO_AUDITORIA: {
         ACCION_GESTIONAR: frozenset(
             {
                 Usuario.Rol.SUPERADMIN,
-                Usuario.Rol.AUDITOR_NACIONAL,
-            }
-        ),
-        ACCION_VER: frozenset(
-            {
-                Usuario.Rol.PRESIDENTE_NACIONAL,
-                Usuario.Rol.VICEPRESIDENTE_NACIONAL,
                 Usuario.Rol.ADMIN_NACIONAL,
             }
         ),
+        ACCION_VER: frozenset(),
     },
 }
 

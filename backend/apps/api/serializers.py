@@ -5,6 +5,7 @@ from apps.familias.models import Familia, Matrimonio, MiembroFamilia
 from apps.iglesias.models import Iglesia
 from apps.miembros.models import Miembro
 from apps.ministerios.models import Ministerio, ParticipacionMinisterio
+from apps.traslados.models import TrasladoMiembro
 
 
 class IglesiaResumenSerializer(serializers.ModelSerializer):
@@ -193,6 +194,34 @@ class MinisterioSerializer(serializers.ModelSerializer):
             "lider",
             "activo",
             "participaciones",
+            "creado_en",
+            "actualizado_en",
+        )
+
+
+class TrasladoMiembroSerializer(serializers.ModelSerializer):
+    miembro = MiembroResumenSerializer(read_only=True)
+    iglesia_origen = IglesiaResumenSerializer(read_only=True)
+    iglesia_destino = IglesiaResumenSerializer(read_only=True)
+    solicitado_por = UsuarioResumenSerializer(read_only=True)
+    respondido_por = UsuarioResumenSerializer(read_only=True)
+    estado_display = serializers.CharField(source="get_estado_display", read_only=True)
+
+    class Meta:
+        model = TrasladoMiembro
+        fields = (
+            "id",
+            "miembro",
+            "iglesia_origen",
+            "iglesia_destino",
+            "estado",
+            "estado_display",
+            "motivo",
+            "observacion_respuesta",
+            "solicitado_por",
+            "respondido_por",
+            "respondido_en",
+            "completado_en",
             "creado_en",
             "actualizado_en",
         )

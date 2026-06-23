@@ -22,20 +22,20 @@ class Command(BaseCommand):
             "is_staff": True,
         },
         {
-            "username": "auditor_nacional",
-            "email": "auditor_nacional@example.local",
-            "first_name": "Auditor",
-            "last_name": "Nacional",
-            "rol": Usuario.Rol.AUDITOR_NACIONAL,
-            "iglesia_codigo": "NACIONAL",
-            "is_staff": True,
-        },
-        {
             "username": "pastor_pruebas",
             "email": "pastor_pruebas@example.local",
             "first_name": "Pastor",
             "last_name": "Pruebas",
             "rol": Usuario.Rol.PASTOR_FILIAL,
+            "iglesia_codigo": "PRUEBAS",
+            "is_staff": False,
+        },
+        {
+            "username": "encargado_pruebas",
+            "email": "encargado_pruebas@example.local",
+            "first_name": "Encargado",
+            "last_name": "Pruebas",
+            "rol": Usuario.Rol.ENCARGADO_FILIAL,
             "iglesia_codigo": "PRUEBAS",
             "is_staff": False,
         },
@@ -58,24 +58,6 @@ class Command(BaseCommand):
             "is_staff": False,
         },
         {
-            "username": "lider_pruebas",
-            "email": "lider_pruebas@example.local",
-            "first_name": "Lider",
-            "last_name": "Pruebas",
-            "rol": Usuario.Rol.LIDER_MINISTERIO,
-            "iglesia_codigo": "PRUEBAS",
-            "is_staff": False,
-        },
-        {
-            "username": "maestro_pruebas",
-            "email": "maestro_pruebas@example.local",
-            "first_name": "Maestro",
-            "last_name": "Pruebas",
-            "rol": Usuario.Rol.MAESTRO,
-            "iglesia_codigo": "PRUEBAS",
-            "is_staff": False,
-        },
-        {
             "username": "lectura_pruebas",
             "email": "lectura_pruebas@example.local",
             "first_name": "Solo",
@@ -84,6 +66,12 @@ class Command(BaseCommand):
             "iglesia_codigo": "PRUEBAS",
             "is_staff": False,
         },
+    )
+
+    USUARIOS_OBSOLETOS = (
+        "auditor_nacional",
+        "lider_pruebas",
+        "maestro_pruebas",
     )
 
     def add_arguments(self, parser):
@@ -120,6 +108,7 @@ class Command(BaseCommand):
         with transaction.atomic():
             for data in self.USUARIOS:
                 self._crear_o_actualizar_usuario(data, iglesias, password, reset_passwords)
+            self._desactivar_usuarios_obsoletos()
 
         if password == self.DEFAULT_PASSWORD:
             self.stdout.write(
@@ -129,6 +118,13 @@ class Command(BaseCommand):
             )
 
         self.stdout.write(self.style.SUCCESS("Seed de usuarios de prueba completado."))
+
+    def _desactivar_usuarios_obsoletos(self):
+        actualizados = Usuario.objects.filter(username__in=self.USUARIOS_OBSOLETOS, is_active=True).update(
+            is_active=False
+        )
+        if actualizados:
+            self.stdout.write(f"usuarios obsoletos desactivados: {actualizados}")
 
     def _crear_o_actualizar_usuario(self, data, iglesias, password, reset_passwords):
         rol = data["rol"]

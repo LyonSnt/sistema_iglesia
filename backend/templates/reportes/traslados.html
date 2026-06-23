@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Reporte de traslados | Ecclesia{% endblock %}
+{% block content %}
+    <section class="space-y-6">
+        <div class="border-b border-slate-200 pb-6">
+            <a class="text-sm font-medium text-slate-500 hover:text-slate-950"
+               href="{% url 'core:dashboard' %}">Panel inicial</a>
+            <h1 class="mt-2 text-3xl font-semibold text-slate-950">Reporte de traslados</h1>
+            <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                Supervision nacional de solicitudes entre iglesias filiales.
+            </p>
+        </div>
+        <div class="grid gap-3 md:grid-cols-5">
+            <div class="rounded border border-slate-200 bg-white p-4">
+                <div class="text-xs font-medium uppercase text-slate-500">Total</div>
+                <div class="mt-1 text-2xl font-semibold text-slate-950">{{ total }}</div>
+            </div>
+            {% for item in conteos_resumen %}
+                <div class="rounded border border-slate-200 bg-white p-4">
+                    <div class="text-xs font-medium uppercase text-slate-500">{{ item.label }}</div>
+                    <div class="mt-1 text-2xl font-semibold text-slate-950">{{ item.total }}</div>
+                </div>
+            {% endfor %}
+        </div>
+        <form class="grid gap-3 rounded border border-slate-200 bg-white p-4 md:grid-cols-3 xl:grid-cols-6"
+              method="get">
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">Buscar</span>
+                <input class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                       type="search"
+                       name="q"
+                       value="{{ filtros.q }}"
+                       placeholder="Miembro o iglesia">
+            </label>
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">Estado</span>
+                <select class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                        name="estado">
+                    <option value="">Todos</option>
+                    {% for value, label in estados %}
+                        <option value="{{ value }}"
+                                {% if filtros.estado == value %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">Origen</span>
+                <select class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                        name="iglesia_origen">
+                    <option value="">Todas</option>
+                    {% for iglesia in iglesias %}
+                        <option value="{{ iglesia.pk }}"
+                                {% if filtros.iglesia_origen == iglesia.pk|stringformat:"s" %}selected{% endif %}>{{ iglesia.codigo }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">Destino</span>
+                <select class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                        name="iglesia_destino">
+                    <option value="">Todas</option>
+                    {% for iglesia in iglesias %}
+                        <option value="{{ iglesia.pk }}"
+                                {% if filtros.iglesia_destino == iglesia.pk|stringformat:"s" %}selected{% endif %}>{{ iglesia.codigo }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">Desde</span>
+                <input class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                       type="date"
+                       name="desde"
+                       value="{{ filtros.desde }}">
+            </label>
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">Hasta</span>
+                <input class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                       type="date"
+                       name="hasta"
+                       value="{{ filtros.hasta }}">
+            </label>
+            <div class="flex items-end gap-2 xl:col-span-6">
+                <button class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                        type="submit">Filtrar</button>
+                <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                   href="{% url 'reportes:traslados' %}">Limpiar</a>
+            </div>
+        </form>
+        <div class="overflow-hidden rounded border border-slate-200 bg-white">
+            <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <thead class="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    <tr>
+                        <th class="px-4 py-3">Miembro</th>
+                        <th class="px-4 py-3">Origen</th>
+                        <th class="px-4 py-3">Destino</th>
+                        <th class="px-4 py-3">Estado</th>
+                        <th class="px-4 py-3">Fecha</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for traslado in traslados %}
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3 font-medium text-slate-950">{{ traslado.miembro }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ traslado.iglesia_origen.codigo }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ traslado.iglesia_destino.codigo }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ traslado.get_estado_display }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ traslado.creado_en|date:"Y-m-d H:i" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td class="px-4 py-8 text-center text-sm text-slate-500" colspan="5">No hay traslados para los filtros actuales.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

@@ -1,12 +1,11 @@
 from django import forms
 from django.core.exceptions import ValidationError
-from django.utils import timezone
 
 from apps.core.iglesias import usuario_es_nacional
 from apps.iglesias.models import Iglesia
 from apps.miembros.models import Miembro
 
-from .models import Traslado
+from .models import TrasladoMiembro
 
 
 FIELD_CLASS = (
@@ -15,38 +14,27 @@ FIELD_CLASS = (
 )
 
 
-class TrasladoForm(forms.ModelForm):
+class TrasladoMiembroForm(forms.ModelForm):
     class Meta:
-        model = Traslado
-        fields = ("iglesia", "miembro", "iglesia_destino", "fecha_solicitud", "motivo")
+        model = TrasladoMiembro
+        fields = ("miembro", "iglesia_destino", "motivo")
         widgets = {
-            "fecha_solicitud": forms.DateInput(attrs={"type": "date"}),
             "motivo": forms.Textarea(attrs={"rows": 4}),
         }
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
-        if not self.initial.get("fecha_solicitud") and not self.instance.pk:
-            self.initial["fecha_solicitud"] = timezone.localdate()
 
-        iglesias = Iglesia.objects.filter(activo=True, tipo=Iglesia.Tipo.FILIAL).order_by("nombre")
-        miembros = Miembro.objects.filter(activo=True).select_related("iglesia").order_by("apellidos", "nombres")
+        miembros = Miembro.objects.filter(activo=True, estado=Miembro.Estado.ACTIVO).select_related("iglesia")
+        iglesias_destino = Iglesia.objects.filter(activo=True, estado=Iglesia.Estado.ACTIVA, tipo=Iglesia.Tipo.FILIAL)
 
         if user is not None and not usuario_es_nacional(user):
-            iglesias_origen = iglesias.filter(pk=user.iglesia_id)
-            miembros = miembros.filter(iglesia=user.iglesia).exclude(estado=Miembro.Estado.FALLECIDO)
-            iglesias_destino = iglesias.exclude(pk=user.iglesia_id)
-            self.fields["iglesia"].required = False
-            self.fields["iglesia"].widget = forms.HiddenInput()
-            self.fields["iglesia"].disabled = True
-        else:
-            iglesias_origen = iglesias
-            iglesias_destino = iglesias
+            miembros = miembros.filter(iglesia=user.iglesia)
+            iglesias_destino = iglesias_destino.exclude(pk=user.iglesia_id)
 
-        self.fields["iglesia"].queryset = iglesias_origen
-        self.fields["miembro"].queryset = miembros
-        self.fields["iglesia_destino"].queryset = iglesias_destino
+        self.fields["miembro"].queryset = miembros.order_by("apellidos", "nombres")
+        self.fields["iglesia_destino"].queryset = iglesias_destino.order_by("nombre")
 
         for field in self.fields.values():
             if not isinstance(field.widget, forms.HiddenInput):
@@ -54,38 +42,30 @@ class TrasladoForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        iglesia = cleaned_data.get("iglesia")
         miembro = cleaned_data.get("miembro")
         iglesia_destino = cleaned_data.get("iglesia_destino")
 
         if self.user is not None and not usuario_es_nacional(self.user):
-            iglesia = self.user.iglesia
-            cleaned_data["iglesia"] = iglesia
+            if miembro is not None and miembro.iglesia_id != self.user.iglesia_id:
+                raise ValidationError("Solo puede solicitar traslados de miembros de su iglesia.")
 
-        if iglesia is not None and iglesia.tipo != Iglesia.Tipo.FILIAL:
-            raise ValidationError("La iglesia origen debe ser una filial.")
-        if iglesia_destino is not None and iglesia_destino.tipo != Iglesia.Tipo.FILIAL:
-            raise ValidationError("La iglesia destino debe ser una filial.")
-        if iglesia is not None and iglesia_destino is not None and iglesia.id == iglesia_destino.id:
-            raise ValidationError("La iglesia destino debe ser diferente a la iglesia origen.")
-        if iglesia is not None and miembro is not None and miembro.iglesia_id != iglesia.id:
-            raise ValidationError("El miembro debe pertenecer a la iglesia origen.")
-        if miembro is not None and miembro.estado == Miembro.Estado.FALLECIDO:
-            raise ValidationError("No se puede trasladar un miembro fallecido.")
-        if miembro is not None:
-            existe_pendiente = Traslado.objects.filter(miembro=miembro, estado=Traslado.Estado.SOLICITADO)
-            if self.instance.pk:
-                existe_pendiente = existe_pendiente.exclude(pk=self.instance.pk)
-            if existe_pendiente.exists():
-                raise ValidationError("El miembro ya tiene un traslado solicitado.")
+        if miembro is not None and iglesia_destino is not None:
+            if miembro.iglesia_id == iglesia_destino.id:
+                raise ValidationError("La iglesia destino debe ser distinta de la iglesia origen.")
+            existe_pendiente = TrasladoMiembro.objects.filter(
+                miembro=miembro,
+                estado=TrasladoMiembro.Estado.SOLICITADO,
+            ).exists()
+            if existe_pendiente:
+                raise ValidationError("El miembro ya tiene un traslado pendiente.")
 
         return cleaned_data
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        if self.user is not None and not usuario_es_nacional(self.user):
-            instance.iglesia = self.user.iglesia
-        if self.user is not None and not instance.solicitado_por_id:
+        if instance.miembro_id:
+            instance.iglesia_origen = instance.miembro.iglesia
+        if self.user is not None:
             instance.solicitado_por = self.user
         if commit:
             instance.save()
@@ -94,13 +74,18 @@ class TrasladoForm(forms.ModelForm):
 
 
 class ResponderTrasladoForm(forms.Form):
-    fecha_respuesta = forms.DateField(
-        label="Fecha de respuesta",
-        initial=timezone.localdate,
-        widget=forms.DateInput(attrs={"type": "date", "class": FIELD_CLASS}),
-    )
-    observacion_respuesta = forms.CharField(
+    observacion = forms.CharField(
         label="Observacion",
         required=False,
         widget=forms.Textarea(attrs={"rows": 4, "class": FIELD_CLASS}),
     )
+
+    def __init__(self, *args, traslado=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.traslado = traslado
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if self.traslado is not None and not self.traslado.pendiente:
+            raise ValidationError("Solo se pueden responder traslados pendientes.")
+        return cleaned_data

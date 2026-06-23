@@ -1,7 +1,53 @@
 {% extends "base.html" %}
 {% block title %}Iglesias | Ecclesia{% endblock %}
 {% block content %}
-<section class="space-y-6"><div class="flex items-end justify-between border-b pb-6"><div><a class="text-sm text-slate-500" href="{% url 'core:dashboard' %}">Panel inicial</a><h1 class="mt-2 text-3xl font-semibold">Iglesias</h1><p class="mt-2 text-sm text-slate-600">Estructura nacional y filiales registradas.</p></div>{% if puede_administrar %}<a class="rounded bg-slate-950 px-4 py-2 text-sm text-white" href="{% url 'iglesias:create' %}">Crear filial</a>{% endif %}</div>
-<form class="flex gap-2 rounded border bg-white p-4" method="get"><input class="w-full rounded border px-3 py-2 text-sm" type="search" name="q" value="{{ q }}" placeholder="Codigo o nombre"><button class="rounded bg-slate-950 px-4 py-2 text-sm text-white">Buscar</button></form>
-<div class="overflow-hidden rounded border bg-white"><table class="min-w-full divide-y text-sm"><thead class="bg-slate-100 text-left text-xs font-semibold uppercase"><tr><th class="px-4 py-3">Codigo</th><th class="px-4 py-3">Iglesia</th><th class="px-4 py-3">Zona</th><th class="px-4 py-3">Estado</th><th class="px-4 py-3">Responsable</th>{% if puede_administrar %}<th class="px-4 py-3">Acciones</th>{% endif %}</tr></thead><tbody class="divide-y">{% for iglesia in iglesias %}<tr><td class="px-4 py-3 font-medium">{{ iglesia.codigo }}</td><td class="px-4 py-3">{{ iglesia.nombre }}</td><td class="px-4 py-3">{{ iglesia.zona|default:"-" }}</td><td class="px-4 py-3">{{ iglesia.get_estado_display }}</td><td class="px-4 py-3">{{ iglesia.responsable_principal|default:"-" }}</td>{% if puede_administrar %}<td class="px-4 py-3">{% if iglesia.tipo == "FILIAL" %}<a href="{% url 'iglesias:update' iglesia.pk %}">Editar</a>{% endif %}</td>{% endif %}</tr>{% endfor %}</tbody></table></div></section>
+    <section class="space-y-6">
+        <div class="flex items-end justify-between border-b pb-6">
+            <div>
+                <a class="text-sm text-slate-500" href="{% url 'core:dashboard' %}">Panel inicial</a>
+                <h1 class="mt-2 text-3xl font-semibold">Iglesias</h1>
+                <p class="mt-2 text-sm text-slate-600">Estructura nacional y filiales registradas.</p>
+            </div>
+            {% if puede_administrar %}<a class="rounded bg-slate-950 px-4 py-2 text-sm text-white"
+   href="{% url 'iglesias:create' %}">Crear filial</a>{% endif %}
+        </div>
+        <form class="flex gap-2 rounded border bg-white p-4" method="get">
+            <input class="w-full rounded border px-3 py-2 text-sm"
+                   type="search"
+                   name="q"
+                   value="{{ q }}"
+                   placeholder="Codigo o nombre">
+            <button class="rounded bg-slate-950 px-4 py-2 text-sm text-white">Buscar</button>
+        </form>
+        <div class="overflow-hidden rounded border bg-white">
+            <table class="min-w-full divide-y text-sm">
+                <thead class="bg-slate-100 text-left text-xs font-semibold uppercase">
+                    <tr>
+                        <th class="px-4 py-3">Codigo</th>
+                        <th class="px-4 py-3">Iglesia</th>
+                        <th class="px-4 py-3">Zona</th>
+                        <th class="px-4 py-3">Estado</th>
+                        <th class="px-4 py-3">Responsable</th>
+                        {% if puede_administrar %}<th class="px-4 py-3">Acciones</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    {% for iglesia in iglesias %}
+                        <tr>
+                            <td class="px-4 py-3 font-medium">{{ iglesia.codigo }}</td>
+                            <td class="px-4 py-3">{{ iglesia.nombre }}</td>
+                            <td class="px-4 py-3">{{ iglesia.zona|default:"-" }}</td>
+                            <td class="px-4 py-3">{{ iglesia.get_estado_display }}</td>
+                            <td class="px-4 py-3">{{ iglesia.responsable_principal|default:"-" }}</td>
+                            {% if puede_administrar %}
+                                <td class="px-4 py-3">
+                                    {% if iglesia.tipo == "FILIAL" %}<a href="{% url 'iglesias:update' iglesia.pk %}">Editar</a>{% endif %}
+                                </td>
+                            {% endif %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
 {% endblock %}

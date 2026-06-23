@@ -42,17 +42,15 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml exec web python m
 | Usuario | Rol | Iglesia | Staff |
 | --- | --- | --- | --- |
 | `admin_nacional` | `ADMIN_NACIONAL` | `NACIONAL` | Si |
-| `auditor_nacional` | `AUDITOR_NACIONAL` | `NACIONAL` | Si |
 
 ### Filial PRUEBAS
 
 | Usuario | Rol | Iglesia | Staff |
 | --- | --- | --- | --- |
 | `pastor_pruebas` | `PASTOR_FILIAL` | `PRUEBAS` | No |
+| `encargado_pruebas` | `ENCARGADO_FILIAL` | `PRUEBAS` | No |
 | `secretario_pruebas` | `SECRETARIO_FILIAL` | `PRUEBAS` | No |
 | `tesorero_pruebas` | `TESORERO_FILIAL` | `PRUEBAS` | No |
-| `lider_pruebas` | `LIDER_MINISTERIO` | `PRUEBAS` | No |
-| `maestro_pruebas` | `MAESTRO` | `PRUEBAS` | No |
 | `lectura_pruebas` | `SOLO_LECTURA` | `PRUEBAS` | No |
 
 ## Politica
@@ -65,6 +63,8 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml exec web python m
   - Iglesia asociada.
 - Los usuarios filiales no deben operar datos de otra iglesia.
 - Los usuarios nacionales pueden consultar informacion consolidada segun rol y permisos.
+- Lideres de ministerio y maestros se prueban mediante asignaciones concretas,
+  no mediante roles base.
 - Las cuentas creadas o restablecidas con contrasena temporal deben cambiarla
   antes de acceder a los modulos.
 

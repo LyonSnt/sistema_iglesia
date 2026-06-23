@@ -1,48 +1,93 @@
 {% extends "base.html" %}
-
-{% block title %}Traslado | Ecclesia{% endblock %}
-
+{% block title %}Traslado de {{ traslado.miembro }} | Ecclesia{% endblock %}
 {% block content %}
-  <section class="space-y-6">
-    <div class="flex flex-col gap-4 border-b border-slate-200 pb-6 md:flex-row md:items-end md:justify-between">
-      <div>
-        <a class="text-sm font-medium text-slate-500 hover:text-slate-950" href="{% url 'traslados:list' %}">Traslados</a>
-        <h1 class="mt-2 text-3xl font-semibold text-slate-950">{{ traslado.miembro }}</h1>
-        <p class="mt-2 text-sm text-slate-600">{{ traslado.iglesia.nombre }} hacia {{ traslado.iglesia_destino.nombre }}</p>
-      </div>
-      {% if puede_responder or puede_cancelar %}
-        <div class="flex flex-wrap gap-2">
-          {% if puede_responder %}
-            <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800" href="{% url 'traslados:approve' traslado.pk %}">Aprobar</a>
-            <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'traslados:reject' traslado.pk %}">Rechazar</a>
-          {% endif %}
-          {% if puede_cancelar %}
-            <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'traslados:cancel' traslado.pk %}">Cancelar solicitud</a>
-          {% endif %}
+    <section class="space-y-6">
+        <div class="flex flex-col gap-4 border-b border-slate-200 pb-6 md:flex-row md:items-end md:justify-between">
+            <div>
+                <a class="text-sm font-medium text-slate-500 hover:text-slate-950"
+                   href="{% url 'traslados:list' %}">Traslados</a>
+                <h1 class="mt-2 text-3xl font-semibold text-slate-950">{{ traslado.miembro }}</h1>
+                <p class="mt-2 text-sm leading-6 text-slate-600">
+                    {{ traslado.iglesia_origen.nombre }} a {{ traslado.iglesia_destino.nombre }}.
+                </p>
+            </div>
+            <span class="rounded border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700">{{ traslado.get_estado_display }}</span>
         </div>
-      {% endif %}
-    </div>
-
-    <div class="grid gap-4 md:grid-cols-2">
-      <div class="rounded border border-slate-200 bg-white p-5">
-        <h2 class="font-semibold text-slate-950">Solicitud</h2>
-        <dl class="mt-4 space-y-3 text-sm">
-          <div><dt class="text-slate-500">Estado</dt><dd class="font-medium text-slate-950">{{ traslado.get_estado_display }}</dd></div>
-          <div><dt class="text-slate-500">Fecha</dt><dd>{{ traslado.fecha_solicitud }}</dd></div>
-          <div><dt class="text-slate-500">Solicitado por</dt><dd>{{ traslado.solicitado_por }}</dd></div>
-          <div><dt class="text-slate-500">Motivo</dt><dd>{{ traslado.motivo|default:"Sin observacion" }}</dd></div>
-        </dl>
-      </div>
-
-      <div class="rounded border border-slate-200 bg-white p-5">
-        <h2 class="font-semibold text-slate-950">Respuesta</h2>
-        <dl class="mt-4 space-y-3 text-sm">
-          <div><dt class="text-slate-500">Fecha</dt><dd>{{ traslado.fecha_respuesta|default:"Pendiente" }}</dd></div>
-          <div><dt class="text-slate-500">Respondido por</dt><dd>{{ traslado.respondido_por|default:"Pendiente" }}</dd></div>
-          <div><dt class="text-slate-500">Observacion</dt><dd>{{ traslado.observacion_respuesta|default:"Sin observacion" }}</dd></div>
-        </dl>
-      </div>
-    </div>
-
-  </section>
+        <div class="grid gap-4 md:grid-cols-2">
+            <article class="rounded border border-slate-200 bg-white p-5">
+                <h2 class="font-semibold text-slate-950">Solicitud</h2>
+                <dl class="mt-4 space-y-3 text-sm">
+                    <div>
+                        <dt class="font-medium text-slate-500">Origen</dt>
+                        <dd class="text-slate-900">
+                            {{ traslado.iglesia_origen }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="font-medium text-slate-500">Destino</dt>
+                        <dd class="text-slate-900">
+                            {{ traslado.iglesia_destino }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="font-medium text-slate-500">Solicitado por</dt>
+                        <dd class="text-slate-900">
+                            {{ traslado.solicitado_por }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="font-medium text-slate-500">Fecha</dt>
+                        <dd class="text-slate-900">
+                            {{ traslado.creado_en|date:"Y-m-d H:i" }}
+                        </dd>
+                    </div>
+                </dl>
+            </article>
+            <article class="rounded border border-slate-200 bg-white p-5">
+                <h2 class="font-semibold text-slate-950">Respuesta</h2>
+                <dl class="mt-4 space-y-3 text-sm">
+                    <div>
+                        <dt class="font-medium text-slate-500">Respondido por</dt>
+                        <dd class="text-slate-900">
+                            {{ traslado.respondido_por|default:"Pendiente" }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="font-medium text-slate-500">Fecha</dt>
+                        <dd class="text-slate-900">
+                            {{ traslado.respondido_en|date:"Y-m-d H:i"|default:"Pendiente" }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="font-medium text-slate-500">Completado</dt>
+                        <dd class="text-slate-900">
+                            {{ traslado.completado_en|date:"Y-m-d H:i"|default:"No" }}
+                        </dd>
+                    </div>
+                </dl>
+            </article>
+        </div>
+        <article class="rounded border border-slate-200 bg-white p-5">
+            <h2 class="font-semibold text-slate-950">Motivo</h2>
+            <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">{{ traslado.motivo }}</p>
+            {% if traslado.observacion_respuesta %}
+                <h2 class="mt-5 font-semibold text-slate-950">Observacion de respuesta</h2>
+                <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">{{ traslado.observacion_respuesta }}</p>
+            {% endif %}
+        </article>
+        {% if puede_responder or puede_anular %}
+            <div class="flex flex-wrap gap-2">
+                {% if puede_responder %}
+                    <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                       href="{% url 'traslados:aceptar' traslado.pk %}">Aceptar</a>
+                    <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                       href="{% url 'traslados:rechazar' traslado.pk %}">Rechazar</a>
+                {% endif %}
+                {% if puede_anular %}
+                    <a class="rounded border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+                       href="{% url 'traslados:anular' traslado.pk %}">Anular</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </section>
 {% endblock %}

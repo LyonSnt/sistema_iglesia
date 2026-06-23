@@ -2,6 +2,7 @@ from django.db.models import Q
 
 from rest_framework.response import Response
 from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.cargos.models import AsignacionCargo, Cargo
@@ -11,12 +12,16 @@ from apps.core.permisos import (
     MODULO_CARGOS,
     MODULO_MIEMBROS,
     MODULO_MINISTERIOS,
+    MODULO_TRASLADOS,
     PermisoModuloDRF,
+    usuario_puede,
 )
 from apps.familias.models import Familia, Matrimonio
 from apps.miembros.models import Miembro
 from apps.ministerios.models import Ministerio, ParticipacionMinisterio
 from apps.ministerios.alcance import filtrar_ministerios_por_usuario, filtrar_participaciones_por_usuario
+from apps.traslados.models import TrasladoMiembro
+from apps.usuarios.models import Usuario
 
 from .serializers import (
     AsignacionCargoSerializer,
@@ -26,6 +31,7 @@ from .serializers import (
     MiembroSerializer,
     MinisterioSerializer,
     ParticipacionMinisterioSerializer,
+    TrasladoMiembroSerializer,
 )
 
 
@@ -53,6 +59,20 @@ class ModuloMinisteriosAPIMixin:
     permission_classes = [PermisoModuloDRF]
     modulo_permiso = MODULO_MINISTERIOS
     accion_permiso = ACCION_VER
+
+
+class PermisoConsultaTrasladosAPI(IsAuthenticated):
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        user = request.user
+        if getattr(user, "is_superuser", False) or getattr(user, "rol", None) == Usuario.Rol.ADMIN_NACIONAL:
+            return True
+        return usuario_puede(user, MODULO_TRASLADOS, ACCION_VER)
+
+
+class ModuloTrasladosAPIMixin:
+    permission_classes = [PermisoConsultaTrasladosAPI]
 
 
 class MiembroListAPIView(ModuloMiembrosAPIMixin, ListAPIView):
@@ -239,3 +259,62 @@ class ParticipacionMinisterioRetrieveAPIView(ModuloMinisteriosAPIMixin, Retrieve
     def get_queryset(self):
         queryset = ParticipacionMinisterio.objects.select_related("ministerio", "miembro")
         return filtrar_participaciones_por_usuario(queryset, self.request.user)
+
+
+class TrasladoMiembroQuerysetAPIMixin:
+    def get_queryset(self):
+        queryset = TrasladoMiembro.objects.select_related(
+            "miembro",
+            "iglesia_origen",
+            "iglesia_destino",
+            "solicitado_por",
+            "respondido_por",
+        )
+        user = self.request.user
+        if not (getattr(user, "is_superuser", False) or getattr(user, "rol", None) == Usuario.Rol.ADMIN_NACIONAL):
+            queryset = queryset.filter(Q(iglesia_origen=user.iglesia) | Q(iglesia_destino=user.iglesia))
+
+        estado = self.request.query_params.get("estado", "").strip()
+        if estado:
+            queryset = queryset.filter(estado=estado)
+
+        origen = self.request.query_params.get("iglesia_origen", "").strip()
+        if origen:
+            queryset = queryset.filter(iglesia_origen_id=origen)
+
+        destino = self.request.query_params.get("iglesia_destino", "").strip()
+        if destino:
+            queryset = queryset.filter(iglesia_destino_id=destino)
+
+        miembro = self.request.query_params.get("miembro", "").strip()
+        if miembro:
+            queryset = queryset.filter(miembro_id=miembro)
+
+        desde = self.request.query_params.get("desde", "").strip()
+        if desde:
+            queryset = queryset.filter(creado_en__date__gte=desde)
+
+        hasta = self.request.query_params.get("hasta", "").strip()
+        if hasta:
+            queryset = queryset.filter(creado_en__date__lte=hasta)
+
+        query = self.request.query_params.get("q", "").strip()
+        if query:
+            queryset = queryset.filter(
+                Q(miembro__nombres__icontains=query)
+                | Q(miembro__apellidos__icontains=query)
+                | Q(iglesia_origen__codigo__icontains=query)
+                | Q(iglesia_origen__nombre__icontains=query)
+                | Q(iglesia_destino__codigo__icontains=query)
+                | Q(iglesia_destino__nombre__icontains=query)
+            )
+
+        return queryset
+
+
+class TrasladoMiembroListAPIView(ModuloTrasladosAPIMixin, TrasladoMiembroQuerysetAPIMixin, ListAPIView):
+    serializer_class = TrasladoMiembroSerializer
+
+
+class TrasladoMiembroRetrieveAPIView(ModuloTrasladosAPIMixin, TrasladoMiembroQuerysetAPIMixin, RetrieveAPIView):
+    serializer_class = TrasladoMiembroSerializer

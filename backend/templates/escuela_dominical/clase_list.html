@@ -1,19 +1,78 @@
 {% extends "base.html" %}
 {% block title %}Escuela Dominical | Ecclesia{% endblock %}
 {% block content %}
-<section class="space-y-6">
-  <div class="flex flex-col gap-4 border-b border-slate-200 pb-6 md:flex-row md:items-end md:justify-between">
-    <div><a class="text-sm font-medium text-slate-500" href="{% url 'core:dashboard' %}">Panel inicial</a><h1 class="mt-2 text-3xl font-semibold">Escuela Dominical</h1><p class="mt-2 text-sm text-slate-600">Clases, niveles, maestros y matriculas por periodo.</p></div>
-    <div class="flex gap-2"><a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700" href="{% url 'escuela_dominical:nivel-list' %}">Niveles</a>{% if puede_gestionar %}<a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700" href="{% url 'escuela_dominical:promocion-list' %}">Promociones</a><a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white" href="{% url 'escuela_dominical:create' %}">Crear clase</a>{% endif %}</div>
-  </div>
-  <form class="grid gap-3 rounded border border-slate-200 bg-white p-4 md:grid-cols-[1fr_14rem_auto]" method="get">
-    <label><span class="text-sm font-medium text-slate-700">Buscar</span><input class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm" type="search" name="q" value="{{ q }}" placeholder="Clase, nivel o maestro"></label>
-    <label><span class="text-sm font-medium text-slate-700">Periodo</span><select class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm" name="periodo"><option value="">Todos</option>{% for item in periodos %}<option value="{{ item.pk }}"{% if periodo == item.pk|stringformat:"s" %} selected{% endif %}>{{ item.nombre }}</option>{% endfor %}</select></label>
-    <div class="flex items-end gap-2"><button class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white" type="submit">Filtrar</button><a class="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700" href="{% url 'escuela_dominical:list' %}">Limpiar</a></div>
-  </form>
-  <div class="overflow-hidden rounded border border-slate-200 bg-white"><table class="min-w-full divide-y divide-slate-200 text-sm">
-    <thead class="bg-slate-100 text-left text-xs font-semibold uppercase text-slate-600"><tr><th class="px-4 py-3">Clase</th><th class="px-4 py-3">Nivel</th><th class="px-4 py-3">Periodo</th><th class="px-4 py-3">Maestro</th><th class="px-4 py-3">Iglesia</th></tr></thead>
-    <tbody class="divide-y divide-slate-100">{% for clase in clases %}<tr><td class="px-4 py-3"><a class="font-medium text-slate-950" href="{% url 'escuela_dominical:detail' clase.pk %}">{{ clase.nombre }}</a></td><td class="px-4 py-3 text-slate-700">{{ clase.nivel }}</td><td class="px-4 py-3 text-slate-700">{{ clase.periodo }}</td><td class="px-4 py-3 text-slate-700">{{ clase.maestro|default:"-" }}</td><td class="px-4 py-3 text-slate-700">{{ clase.iglesia.codigo }}</td></tr>{% empty %}<tr><td class="px-4 py-8 text-center text-slate-500" colspan="5">No hay clases registradas.</td></tr>{% endfor %}</tbody>
-  </table></div>
-</section>
+    <section class="space-y-6">
+        <div class="flex flex-col gap-4 border-b border-slate-200 pb-6 md:flex-row md:items-end md:justify-between">
+            <div>
+                <a class="text-sm font-medium text-slate-500"
+                   href="{% url 'core:dashboard' %}">Panel inicial</a>
+                <h1 class="mt-2 text-3xl font-semibold">Escuela Dominical</h1>
+                <p class="mt-2 text-sm text-slate-600">Clases, niveles, maestros y matriculas por periodo.</p>
+            </div>
+            <div class="flex gap-2">
+                <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700"
+                   href="{% url 'escuela_dominical:nivel-list' %}">Niveles</a>
+                {% if puede_gestionar %}<a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700"
+   href="{% url 'escuela_dominical:promocion-list' %}">Promociones</a><a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white"
+   href="{% url 'escuela_dominical:create' %}">Crear clase</a>{% endif %}
+            </div>
+        </div>
+        <form class="grid gap-3 rounded border border-slate-200 bg-white p-4 md:grid-cols-[1fr_14rem_auto]"
+              method="get">
+            <label>
+                <span class="text-sm font-medium text-slate-700">Buscar</span>
+                <input class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                       type="search"
+                       name="q"
+                       value="{{ q }}"
+                       placeholder="Clase, nivel o maestro">
+            </label>
+            <label>
+                <span class="text-sm font-medium text-slate-700">Periodo</span>
+                <select class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                        name="periodo">
+                    <option value="">Todos</option>
+                    {% for item in periodos %}
+                        <option value="{{ item.pk }}"
+                                {% if periodo == item.pk|stringformat:"s" %}selected{% endif %}>{{ item.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <div class="flex items-end gap-2">
+                <button class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white"
+                        type="submit">Filtrar</button>
+                <a class="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700"
+                   href="{% url 'escuela_dominical:list' %}">Limpiar</a>
+            </div>
+        </form>
+        <div class="overflow-hidden rounded border border-slate-200 bg-white">
+            <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <thead class="bg-slate-100 text-left text-xs font-semibold uppercase text-slate-600">
+                    <tr>
+                        <th class="px-4 py-3">Clase</th>
+                        <th class="px-4 py-3">Nivel</th>
+                        <th class="px-4 py-3">Periodo</th>
+                        <th class="px-4 py-3">Maestro</th>
+                        <th class="px-4 py-3">Iglesia</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for clase in clases %}
+                        <tr>
+                            <td class="px-4 py-3"><a class="font-medium text-slate-950"
+   href="{% url 'escuela_dominical:detail' clase.pk %}">{{ clase.nombre }}</a></td>
+                            <td class="px-4 py-3 text-slate-700">{{ clase.nivel }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ clase.periodo }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ clase.maestro|default:"-" }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ clase.iglesia.codigo }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td class="px-4 py-8 text-center text-slate-500" colspan="5">No hay clases registradas.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
 {% endblock %}

@@ -1,87 +1,92 @@
-from django.db import transaction
+from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DetailView, FormView, ListView
 
+from apps.auditoria.models import RegistroAuditoria
 from apps.core.iglesias import usuario_es_nacional
-from apps.core.permisos import ACCION_GESTIONAR, MODULO_TRASLADOS, PermisoModuloMixin
-from apps.miembros.models import Miembro
+from apps.core.permisos import ACCION_GESTIONAR, ACCION_VER, MODULO_TRASLADOS, PermisoModuloMixin
 
-from .forms import ResponderTrasladoForm, TrasladoForm
-from .models import Traslado
+from .forms import ResponderTrasladoForm, TrasladoMiembroForm
+from .models import TrasladoMiembro
+from .servicios import aceptar_traslado, anular_traslado, rechazar_traslado
 
 
 class TrasladoQuerysetMixin:
     def get_queryset(self):
-        queryset = Traslado.objects.select_related(
-            "iglesia",
-            "iglesia_destino",
+        queryset = TrasladoMiembro.objects.select_related(
             "miembro",
+            "iglesia_origen",
+            "iglesia_destino",
             "solicitado_por",
             "respondido_por",
         )
-        user = self.request.user
-        if usuario_es_nacional(user):
+        if usuario_es_nacional(self.request.user):
             return queryset
-        if getattr(user, "iglesia_id", None) is None:
-            return queryset.none()
-        return queryset.filter(Q(iglesia=user.iglesia) | Q(iglesia_destino=user.iglesia))
+        return queryset.filter(
+            Q(iglesia_origen=self.request.user.iglesia) | Q(iglesia_destino=self.request.user.iglesia)
+        )
 
 
 class TrasladoListView(TrasladoQuerysetMixin, PermisoModuloMixin, ListView):
-    model = Traslado
+    model = TrasladoMiembro
     template_name = "traslados/traslado_list.html"
     context_object_name = "traslados"
     paginate_by = 20
     modulo_permiso = MODULO_TRASLADOS
-    accion_permiso = ACCION_GESTIONAR
+    accion_permiso = ACCION_VER
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        estado = self.request.GET.get("estado", "").strip()
+        if estado:
+            queryset = queryset.filter(estado=estado)
+
         query = self.request.GET.get("q", "").strip()
         if query:
             queryset = queryset.filter(
                 Q(miembro__nombres__icontains=query)
                 | Q(miembro__apellidos__icontains=query)
-                | Q(iglesia__nombre__icontains=query)
+                | Q(iglesia_origen__nombre__icontains=query)
                 | Q(iglesia_destino__nombre__icontains=query)
+                | Q(iglesia_origen__codigo__icontains=query)
+                | Q(iglesia_destino__codigo__icontains=query)
             )
-        estado = self.request.GET.get("estado", "").strip()
-        if estado:
-            queryset = queryset.filter(estado=estado)
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["q"] = self.request.GET.get("q", "").strip()
         context["estado"] = self.request.GET.get("estado", "").strip()
-        context["estados"] = Traslado.Estado.choices
+        context["q"] = self.request.GET.get("q", "").strip()
+        context["estados"] = TrasladoMiembro.Estado.choices
         return context
 
 
 class TrasladoDetailView(TrasladoQuerysetMixin, PermisoModuloMixin, DetailView):
-    model = Traslado
+    model = TrasladoMiembro
     template_name = "traslados/traslado_detail.html"
     context_object_name = "traslado"
     modulo_permiso = MODULO_TRASLADOS
-    accion_permiso = ACCION_GESTIONAR
+    accion_permiso = ACCION_VER
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         traslado = self.object
         user = self.request.user
-        es_origen = getattr(user, "iglesia_id", None) == traslado.iglesia_id
-        es_destino = getattr(user, "iglesia_id", None) == traslado.iglesia_destino_id
-        es_nacional = usuario_es_nacional(user)
-        context["puede_responder"] = traslado.estado == Traslado.Estado.SOLICITADO and (es_destino or es_nacional)
-        context["puede_cancelar"] = traslado.estado == Traslado.Estado.SOLICITADO and (es_origen or es_nacional)
+        context["puede_responder"] = traslado.pendiente and (
+            usuario_es_nacional(user) or user.iglesia_id == traslado.iglesia_destino_id
+        )
+        context["puede_anular"] = traslado.pendiente and (
+            usuario_es_nacional(user) or user.iglesia_id == traslado.iglesia_origen_id
+        )
         return context
 
 
 class TrasladoCreateView(PermisoModuloMixin, CreateView):
-    model = Traslado
-    form_class = TrasladoForm
+    model = TrasladoMiembro
+    form_class = TrasladoMiembroForm
     template_name = "traslados/traslado_form.html"
     success_url = reverse_lazy("traslados:list")
     modulo_permiso = MODULO_TRASLADOS
@@ -92,90 +97,91 @@ class TrasladoCreateView(PermisoModuloMixin, CreateView):
         kwargs["user"] = self.request.user
         return kwargs
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        RegistroAuditoria.objects.create(
+            usuario=self.request.user,
+            accion="SOLICITAR",
+            modulo="traslados",
+            registro_afectado=f"traslados.TrasladoMiembro:{self.object.pk}",
+            valor_nuevo={
+                "miembro_id": self.object.miembro_id,
+                "iglesia_origen_id": self.object.iglesia_origen_id,
+                "iglesia_destino_id": self.object.iglesia_destino_id,
+                "estado": self.object.estado,
+            },
+            iglesia=self.object.iglesia_origen,
+            motivo="Solicitud de traslado registrada por iglesia origen.",
+        )
+        messages.success(self.request, "Solicitud de traslado registrada.")
+        return response
+
 
 class ResponderTrasladoView(TrasladoQuerysetMixin, PermisoModuloMixin, FormView):
     template_name = "traslados/traslado_responder_form.html"
     form_class = ResponderTrasladoForm
     modulo_permiso = MODULO_TRASLADOS
     accion_permiso = ACCION_GESTIONAR
-    nuevo_estado = None
+    accion = ""
+    titulo = ""
 
     def get_object(self):
         if not hasattr(self, "object"):
             self.object = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
         return self.object
 
-    def dispatch(self, request, *args, **kwargs):
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
         traslado = self.get_object()
-        user = request.user
-        es_destino = getattr(user, "iglesia_id", None) == traslado.iglesia_destino_id
-        if traslado.estado != Traslado.Estado.SOLICITADO or not (es_destino or usuario_es_nacional(user)):
-            return redirect("traslados:detail", pk=traslado.pk)
-        return super().dispatch(request, *args, **kwargs)
+        self.validar_alcance_accion(traslado)
+        kwargs["traslado"] = traslado
+        return kwargs
+
+    def validar_alcance_accion(self, traslado):
+        user = self.request.user
+        if not traslado.pendiente:
+            raise PermissionDenied
+        if usuario_es_nacional(user):
+            return
+        if self.accion in {"aceptar", "rechazar"} and user.iglesia_id != traslado.iglesia_destino_id:
+            raise PermissionDenied
+        if self.accion == "anular" and user.iglesia_id != traslado.iglesia_origen_id:
+            raise PermissionDenied
 
     def form_valid(self, form):
         traslado = self.get_object()
-        with transaction.atomic():
-            traslado.estado = self.nuevo_estado
-            traslado.fecha_respuesta = form.cleaned_data["fecha_respuesta"]
-            traslado.observacion_respuesta = form.cleaned_data["observacion_respuesta"]
-            traslado.respondido_por = self.request.user
-            traslado.save(update_fields=["estado", "fecha_respuesta", "observacion_respuesta", "respondido_por"])
-            if self.nuevo_estado == Traslado.Estado.APROBADO:
-                miembro = traslado.miembro
-                miembro.iglesia = traslado.iglesia_destino
-                miembro.estado = Miembro.Estado.ACTIVO
-                miembro.save(update_fields=["iglesia", "estado"])
-        return redirect("traslados:detail", pk=traslado.pk)
+        self.validar_alcance_accion(traslado)
+        observacion = form.cleaned_data["observacion"]
 
-    def get_success_url(self):
-        return reverse("traslados:detail", args=[self.get_object().pk])
+        if self.accion == "aceptar":
+            aceptar_traslado(traslado, self.request.user, observacion)
+            messages.success(self.request, "Traslado aceptado y miembro movido a la iglesia destino.")
+        elif self.accion == "rechazar":
+            rechazar_traslado(traslado, self.request.user, observacion)
+            messages.success(self.request, "Traslado rechazado.")
+        elif self.accion == "anular":
+            anular_traslado(traslado, self.request.user, observacion)
+            messages.success(self.request, "Traslado anulado.")
+        return redirect("traslados:detail", pk=traslado.pk)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["traslado"] = self.get_object()
-        context["accion"] = "Aprobar" if self.nuevo_estado == Traslado.Estado.APROBADO else "Rechazar"
+        context["titulo"] = self.titulo
+        context["accion"] = self.accion
         return context
 
 
-class AprobarTrasladoView(ResponderTrasladoView):
-    nuevo_estado = Traslado.Estado.APROBADO
+class AceptarTrasladoView(ResponderTrasladoView):
+    accion = "aceptar"
+    titulo = "Aceptar traslado"
 
 
 class RechazarTrasladoView(ResponderTrasladoView):
-    nuevo_estado = Traslado.Estado.RECHAZADO
+    accion = "rechazar"
+    titulo = "Rechazar traslado"
 
 
-class CancelarTrasladoView(TrasladoQuerysetMixin, PermisoModuloMixin, FormView):
-    template_name = "traslados/traslado_responder_form.html"
-    form_class = ResponderTrasladoForm
-    modulo_permiso = MODULO_TRASLADOS
-    accion_permiso = ACCION_GESTIONAR
-
-    def get_object(self):
-        if not hasattr(self, "object"):
-            self.object = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
-        return self.object
-
-    def dispatch(self, request, *args, **kwargs):
-        traslado = self.get_object()
-        user = request.user
-        es_origen = getattr(user, "iglesia_id", None) == traslado.iglesia_id
-        if traslado.estado != Traslado.Estado.SOLICITADO or not (es_origen or usuario_es_nacional(user)):
-            return redirect("traslados:detail", pk=traslado.pk)
-        return super().dispatch(request, *args, **kwargs)
-
-    def form_valid(self, form):
-        traslado = self.get_object()
-        traslado.estado = Traslado.Estado.CANCELADO
-        traslado.fecha_respuesta = form.cleaned_data["fecha_respuesta"]
-        traslado.observacion_respuesta = form.cleaned_data["observacion_respuesta"]
-        traslado.respondido_por = self.request.user
-        traslado.save(update_fields=["estado", "fecha_respuesta", "observacion_respuesta", "respondido_por"])
-        return redirect("traslados:detail", pk=traslado.pk)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["traslado"] = self.get_object()
-        context["accion"] = "Cancelar"
-        return context
+class AnularTrasladoView(ResponderTrasladoView):
+    accion = "anular"
+    titulo = "Anular traslado"

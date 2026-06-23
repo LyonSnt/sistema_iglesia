@@ -1,13 +1,11 @@
 from django.contrib import admin
 
-from apps.core.admin import IglesiaScopedAdminMixin
-
-from .models import Traslado
+from .models import TrasladoMiembro
 
 
-@admin.register(Traslado)
-class TrasladoAdmin(IglesiaScopedAdminMixin, admin.ModelAdmin):
-    list_display = ("miembro", "iglesia", "iglesia_destino", "estado", "fecha_solicitud", "fecha_respuesta")
-    list_filter = ("estado", "iglesia", "iglesia_destino")
-    search_fields = ("miembro__nombres", "miembro__apellidos", "iglesia__nombre", "iglesia_destino__nombre")
-    readonly_fields = ("creado_en", "actualizado_en")
+@admin.register(TrasladoMiembro)
+class TrasladoMiembroAdmin(admin.ModelAdmin):
+    list_display = ("miembro", "iglesia_origen", "iglesia_destino", "estado", "creado_en")
+    list_filter = ("estado", "iglesia_origen", "iglesia_destino")
+    search_fields = ("miembro__nombres", "miembro__apellidos", "motivo")
+    readonly_fields = ("creado_en", "actualizado_en", "respondido_en", "completado_en")
