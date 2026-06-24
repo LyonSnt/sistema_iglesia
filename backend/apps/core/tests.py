@@ -175,6 +175,7 @@ class CoreViewsTests(TestCase):
         self.assertContains(response, "Iglesias y zonas")
         self.assertContains(response, "Usuarios y roles")
         self.assertContains(response, "Reportes")
+        self.assertContains(response, reverse("reportes:finanzas"))
         self.assertContains(response, "Auditoria")
         self.assertNotContains(response, "Miembros y familias")
         self.assertNotContains(response, "Ministerios")

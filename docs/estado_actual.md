@@ -1,6 +1,6 @@
 # Estado Actual
 
-Ultima actualizacion: 2026-06-23.
+Ultima actualizacion: 2026-06-24.
 
 ## Resumen
 
@@ -80,7 +80,8 @@ solo de esa filial.
   - listado en `/cargos/`;
   - detalle de asignacion;
   - creacion y edicion;
-  - finalizacion de asignaciones.
+  - finalizacion de asignaciones;
+  - documentos adjuntos protegidos por permiso y alcance por iglesia.
 - Modulo Ministerios iniciado:
   - listado en `/ministerios/`;
   - detalle de ministerio;
@@ -112,12 +113,21 @@ solo de esa filial.
   - solicitud de traslado entre iglesias filiales;
   - aceptacion, rechazo y anulacion segun origen/destino;
   - movimiento del miembro a la iglesia destino al aceptar;
+  - documentos adjuntos protegidos por permiso y alcance origen/destino;
   - auditoria explicita del flujo de traslado;
   - reporte inicial de traslados en `/reportes/traslados/`.
+- Modulo Reportes iniciado:
+  - entrada principal de Reportes apunta al reporte financiero consolidado;
+  - reporte nacional de traslados en `/reportes/traslados/`;
+  - reporte financiero consolidado en `/reportes/finanzas/`;
+  - filtros por filial, zona, anio y mes;
+  - totales de ingresos, egresos, saldo local, aporte pagado y aporte
+    pendiente.
 - Modulo Finanzas locales iniciado:
   - listado en `/finanzas/`;
   - conceptos financieros por iglesia y tipo ingreso/egreso;
   - registro de movimientos de ingreso y egreso;
+  - documentos adjuntos protegidos por permiso y alcance por iglesia;
   - resumen de ingresos, egresos y saldo segun filtros;
   - detalle de movimiento;
   - anulacion sin borrado fisico;
@@ -132,17 +142,39 @@ solo de esa filial.
   - consulta por filial con alcance por iglesia;
   - registro de pago por `SUPERADMIN`;
   - numeracion transaccional de recibos;
-  - resumen de pendiente y pagado.
+  - resumen de pendiente y pagado;
+  - cuenta corriente detallada en `/aportes-nacionales/cuenta-corriente/`;
+  - recibo PDF para aportes pagados.
+- Modulo Inventario iniciado:
+  - listado en `/inventario/`;
+  - registro y edicion de activos por iglesia filial;
+  - codigo interno unico por iglesia;
+  - categoria, ubicacion actual, responsable actual, estado, fecha de
+    adquisicion y valor referencial;
+  - historial de movimientos por cambio de ubicacion, responsable, reparacion
+    y baja;
+  - documentos adjuntos protegidos por permiso y alcance por iglesia;
+  - baja sin borrado fisico;
+  - alcance por iglesia y permisos de gestion segun matriz funcional.
+- Modulo Documentos iniciado:
+  - modelo reutilizable `DocumentoAdjunto`;
+  - asociacion generica a registros con `ContentType`;
+  - validacion de extension y tamano;
+  - anulado logico sin borrado fisico;
+  - integracion funcional en Inventario, Cargos, Traslados y Finanzas.
 - HTMX preparado en plantilla base.
 - Login propio en `/login/`.
 - Logout por POST en `/logout/`.
 - Dashboard inicial protegido en `/`.
 - Gestion de filiales en `/iglesias/`:
   - alta de filial con pastor o encargado inicial en una sola operacion;
+  - interfaz de alta separa datos de iglesia, autoridad inicial y acceso
+    temporal;
   - edicion y desactivacion sin borrar historial.
 - Gestion delegada de usuarios en `/usuarios/`:
   - Nacional gestiona autoridades iniciales de filiales;
   - pastor y encargado gestionan solo cuentas locales delegables;
+  - interfaz independiente aclara que agrega cuentas a filiales existentes;
   - creacion, edicion, desactivacion y restablecimiento de contrasena;
   - cambio obligatorio de contrasena temporal en el primer acceso.
 - Listado inicial de miembros en `/miembros/`.
@@ -179,6 +211,9 @@ solo de esa filial.
   - `MovimientoFinanciero`.
   - `CierreMensualFinanciero`.
   - `AporteNacional`.
+  - `ActivoInventario`.
+  - `MovimientoInventario`.
+  - `DocumentoAdjunto`.
   - `RegistroAuditoria`.
 - Admin basico para modelos iniciales.
 - Migraciones iniciales creadas y aplicadas.
@@ -342,7 +377,7 @@ Se creo un grupo Django por cada rol inicial:
 - Tests de `apps.api` cubren consulta, filtros, permisos y alcance por iglesia
   para Ministerios y participaciones ministeriales.
 - Tests de `apps.cargos` cubren listado, detalle, creacion, validaciones,
-  finalizacion, permisos y aislamiento por iglesia.
+  finalizacion, documentos adjuntos, permisos y aislamiento por iglesia.
 - API de Cargos/directivas expone cargos y asignaciones en modo consulta,
   protegida por permisos y alcance por iglesia.
 - Tests de `apps.ministerios` cubren listado, detalle, creacion, validaciones,
@@ -353,23 +388,35 @@ Se creo un grupo Django por cada rol inicial:
 - Tests de `apps.certificados` cubren elegibilidad, numeracion, firmas vigentes,
   emision idempotente, PDF, permisos, aislamiento por iglesia y anulacion.
 - Tests de `apps.traslados` cubren solicitud, permisos, alcance por iglesia,
-  aceptacion, rechazo, anulacion, auditoria y movimiento del miembro.
+  aceptacion, rechazo, anulacion, auditoria, documentos adjuntos y movimiento
+  del miembro.
 - Tests de `apps.reportes` cubren reporte inicial de traslados.
+- Tests de `apps.reportes` cubren reporte financiero consolidado, permisos
+  nacionales, filtros y totales.
+- Tests de `apps.inventario` cubren creacion, permisos, consulta, aislamiento
+  por iglesia, movimientos, historial, documentos adjuntos protegidos y baja
+  sin borrado fisico.
 - Tests de `apps.finanzas` cubren conceptos, movimientos, permisos, gestion
   local, aislamiento por iglesia, validaciones, anulacion, cierres mensuales,
-  totales congelados, duplicados y bloqueo por mes cerrado.
+  totales congelados, duplicados, documentos adjuntos y bloqueo por mes cerrado.
 - Tests de `apps.aportes_nacionales` cubren generacion desde cierre mensual,
   porcentaje parametrizado, permisos, no duplicar aportes, aislamiento por
   iglesia, registro de pago, numeracion de recibos, totales pendiente/pagado y
-  seed de parametros documentales.
+  seed de parametros documentales, cuenta corriente y recibo PDF.
 - Tests de `apps.auditoria` cubren intervencion nacional sobre filiales y
   ausencia de auditoria nacional en la gestion propia de una filial.
+- Tests de `apps.iglesias` y `apps.usuarios` cubren la separacion visual entre
+  alta de filial, autoridad inicial, usuarios delegados y acceso temporal.
 - Tailwind ya no usa CDN.
 - Compose dev y prod validan correctamente.
 - Migracion `escuela_dominical.0003` aplicada para procesos y resultados de
   promocion.
 - Migracion `certificados.0001` aplicada para certificados de Escuela Dominical.
+- Migracion `inventario.0001` aplicada para activos y movimientos de inventario.
+- Migracion `documentos.0001` aplicada para documentos adjuntos reutilizables.
 - Suite completa validada: 205 tests aprobados.
+- Validacion focalizada de documentos adjuntos en Cargos, Traslados y Finanzas:
+  47 tests aprobados.
 - `python manage.py check` sin issues y sin migraciones pendientes.
 
 ## Pendiente Proximo Recomendado
@@ -378,8 +425,7 @@ Siguiente bloque recomendado:
 
 1. Validar el diseno PDF con la plantilla institucional e incorporar logotipo
    o fondo oficial cuando se entregue el archivo fuente.
-2. Completar aportes nacionales con recibos PDF y cuenta corriente detallada.
-3. Continuar con inventario o reportes financieros consolidados.
+2. Desarrollar reportes de Inventario.
 
 No conviene iniciar vistas de modulos grandes hasta cerrar permisos y acceso por
 iglesia.

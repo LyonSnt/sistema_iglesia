@@ -1,6 +1,8 @@
 from django.contrib import messages
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DetailView, FormView, ListView
@@ -8,6 +10,8 @@ from django.views.generic import CreateView, DetailView, FormView, ListView
 from apps.auditoria.models import RegistroAuditoria
 from apps.core.iglesias import usuario_es_nacional
 from apps.core.permisos import ACCION_GESTIONAR, ACCION_VER, MODULO_TRASLADOS, PermisoModuloMixin
+from apps.documentos.forms import AnularDocumentoAdjuntoForm, DocumentoAdjuntoForm
+from apps.documentos.models import DocumentoAdjunto
 
 from .forms import ResponderTrasladoForm, TrasladoMiembroForm
 from .models import TrasladoMiembro
@@ -81,6 +85,11 @@ class TrasladoDetailView(TrasladoQuerysetMixin, PermisoModuloMixin, DetailView):
         context["puede_anular"] = traslado.pendiente and (
             usuario_es_nacional(user) or user.iglesia_id == traslado.iglesia_origen_id
         )
+        context["puede_gestionar_documentos"] = context["puede_responder"] or context["puede_anular"]
+        context["documentos"] = documentos_traslado(traslado)
+        context["documento_create_url"] = reverse("traslados:document-create", args=[traslado.pk])
+        context["documento_download_name"] = "traslados:document-download"
+        context["documento_deactivate_name"] = "traslados:document-deactivate"
         return context
 
 
@@ -185,3 +194,106 @@ class RechazarTrasladoView(ResponderTrasladoView):
 class AnularTrasladoView(ResponderTrasladoView):
     accion = "anular"
     titulo = "Anular traslado"
+
+
+class AdjuntarDocumentoTrasladoView(TrasladoQuerysetMixin, PermisoModuloMixin, FormView):
+    form_class = DocumentoAdjuntoForm
+    template_name = "documentos/documento_form.html"
+    modulo_permiso = MODULO_TRASLADOS
+    accion_permiso = ACCION_GESTIONAR
+
+    def get_object(self):
+        if not hasattr(self, "object"):
+            self.object = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        return self.object
+
+    def dispatch(self, request, *args, **kwargs):
+        self.validar_alcance_documento(self.get_object())
+        return super().dispatch(request, *args, **kwargs)
+
+    def validar_alcance_documento(self, traslado):
+        user = self.request.user
+        if usuario_es_nacional(user):
+            return
+        if user.iglesia_id not in {traslado.iglesia_origen_id, traslado.iglesia_destino_id}:
+            raise PermissionDenied
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["objeto"] = self.get_object()
+        kwargs["user"] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        form.save()
+        return redirect("traslados:detail", pk=self.get_object().pk)
+
+    def get_context_data(self, **kwargs):
+        traslado = self.get_object()
+        context = super().get_context_data(**kwargs)
+        context["seccion"] = "Traslados"
+        context["objeto_titulo"] = str(traslado)
+        context["cancel_url"] = reverse("traslados:detail", args=[traslado.pk])
+        return context
+
+
+class DescargarDocumentoTrasladoView(TrasladoQuerysetMixin, PermisoModuloMixin, FormView):
+    modulo_permiso = MODULO_TRASLADOS
+    accion_permiso = ACCION_VER
+
+    def get(self, request, pk, documento_pk):
+        traslado = get_object_or_404(self.get_queryset(), pk=pk)
+        documento = get_object_or_404(
+            documentos_traslado(traslado),
+            pk=documento_pk,
+            estado=DocumentoAdjunto.Estado.ACTIVO,
+        )
+        return FileResponse(documento.archivo.open("rb"), as_attachment=False, filename=documento.archivo.name.split("/")[-1])
+
+
+class AnularDocumentoTrasladoView(AdjuntarDocumentoTrasladoView):
+    form_class = AnularDocumentoAdjuntoForm
+    template_name = "documentos/documento_anular.html"
+
+    def get_form_kwargs(self):
+        return FormView.get_form_kwargs(self)
+
+    def get_documento(self):
+        if not hasattr(self, "documento"):
+            self.documento = get_object_or_404(
+                documentos_traslado(self.get_object()),
+                pk=self.kwargs["documento_pk"],
+                estado=DocumentoAdjunto.Estado.ACTIVO,
+            )
+        return self.documento
+
+    def form_valid(self, form):
+        documento = self.get_documento()
+        documento.estado = DocumentoAdjunto.Estado.ANULADO
+        documento.anulado_por = self.request.user
+        documento.anulado_en = timezone_now()
+        documento.motivo_anulacion = form.cleaned_data["motivo"]
+        documento.full_clean()
+        documento.save(update_fields=["estado", "anulado_por", "anulado_en", "motivo_anulacion", "actualizado_en"])
+        return redirect("traslados:detail", pk=self.get_object().pk)
+
+    def get_context_data(self, **kwargs):
+        traslado = self.get_object()
+        context = super().get_context_data(**kwargs)
+        context["documento"] = self.get_documento()
+        context["cancel_url"] = reverse("traslados:detail", args=[traslado.pk])
+        return context
+
+
+def documentos_traslado(traslado):
+    return DocumentoAdjunto.objects.filter(
+        iglesia=traslado.iglesia_origen,
+        content_type=ContentType.objects.get_for_model(TrasladoMiembro),
+        object_id=traslado.pk,
+    ).select_related("subido_por", "anulado_por")
+
+
+def timezone_now():
+    from django.utils import timezone
+
+    return timezone.now()

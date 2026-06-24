@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Reporte financiero consolidado | Ecclesia{% endblock %}
+{% block content %}
+    <section class="space-y-6">
+        <div class="flex flex-col gap-4 border-b border-slate-200 pb-6 md:flex-row md:items-end md:justify-between">
+            <div>
+                <a class="text-sm font-medium text-slate-500 hover:text-slate-950"
+                   href="{% url 'core:dashboard' %}">Panel inicial</a>
+                <h1 class="mt-2 text-3xl font-semibold text-slate-950">Reporte financiero consolidado</h1>
+                <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                    Supervision nacional de cierres mensuales, saldos locales y estado de aportes nacionales.
+                </p>
+            </div>
+            <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+               href="{% url 'reportes:traslados' %}">Reporte de traslados</a>
+        </div>
+
+        <div class="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+            <div class="rounded border border-slate-200 bg-white p-4">
+                <div class="text-xs font-medium uppercase text-slate-500">Cierres</div>
+                <div class="mt-1 text-2xl font-semibold text-slate-950">{{ total_cierres }}</div>
+            </div>
+            <div class="rounded border border-slate-200 bg-white p-4">
+                <div class="text-xs font-medium uppercase text-slate-500">Ingresos</div>
+                <div class="mt-1 text-2xl font-semibold text-slate-950">$ {{ totales.ingresos|floatformat:2 }}</div>
+            </div>
+            <div class="rounded border border-slate-200 bg-white p-4">
+                <div class="text-xs font-medium uppercase text-slate-500">Egresos</div>
+                <div class="mt-1 text-2xl font-semibold text-slate-950">$ {{ totales.egresos|floatformat:2 }}</div>
+            </div>
+            <div class="rounded border border-slate-200 bg-white p-4">
+                <div class="text-xs font-medium uppercase text-slate-500">Saldo local</div>
+                <div class="mt-1 text-2xl font-semibold text-slate-950">$ {{ totales.saldo|floatformat:2 }}</div>
+            </div>
+            <div class="rounded border border-slate-200 bg-white p-4">
+                <div class="text-xs font-medium uppercase text-slate-500">Aporte pagado</div>
+                <div class="mt-1 text-2xl font-semibold text-slate-950">$ {{ totales.pagado|floatformat:2 }}</div>
+            </div>
+            <div class="rounded border border-slate-200 bg-white p-4">
+                <div class="text-xs font-medium uppercase text-slate-500">Aporte pendiente</div>
+                <div class="mt-1 text-2xl font-semibold text-slate-950">$ {{ totales.pendiente|floatformat:2 }}</div>
+            </div>
+        </div>
+
+        <form class="grid gap-3 rounded border border-slate-200 bg-white p-4 md:grid-cols-2 xl:grid-cols-5"
+              method="get">
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">Filial</span>
+                <select class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                        name="iglesia">
+                    <option value="">Todas</option>
+                    {% for iglesia in iglesias %}
+                        <option value="{{ iglesia.pk }}"
+                                {% if filtros.iglesia == iglesia.pk|stringformat:"s" %}selected{% endif %}>{{ iglesia.codigo }} - {{ iglesia.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">Zona</span>
+                <select class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                        name="zona">
+                    <option value="">Todas</option>
+                    {% for zona in zonas %}
+                        <option value="{{ zona.zona_id }}"
+                                {% if filtros.zona == zona.zona_id|stringformat:"s" %}selected{% endif %}>{{ zona.zona__nombre }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">Anio</span>
+                <input class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                       type="number"
+                       name="anio"
+                       value="{{ filtros.anio }}"
+                       placeholder="2026">
+            </label>
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">Mes</span>
+                <select class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                        name="mes">
+                    <option value="">Todos</option>
+                    {% for numero, etiqueta in meses %}
+                        <option value="{{ numero }}"
+                                {% if filtros.mes == numero|stringformat:"s" %}selected{% endif %}>{{ etiqueta }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <div class="flex items-end gap-2">
+                <button class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                        type="submit">Filtrar</button>
+                <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                   href="{% url 'reportes:finanzas' %}">Limpiar</a>
+            </div>
+        </form>
+
+        <div class="overflow-hidden rounded border border-slate-200 bg-white">
+            <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <thead class="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    <tr>
+                        <th class="px-4 py-3">Periodo</th>
+                        <th class="px-4 py-3">Filial</th>
+                        <th class="px-4 py-3">Zona</th>
+                        <th class="px-4 py-3">Ingresos</th>
+                        <th class="px-4 py-3">Egresos</th>
+                        <th class="px-4 py-3">Saldo</th>
+                        <th class="px-4 py-3">Aporte</th>
+                        <th class="px-4 py-3">Pagado</th>
+                        <th class="px-4 py-3">Pendiente</th>
+                        <th class="px-4 py-3">Estado aporte</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for fila in filas %}
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3 font-medium text-slate-950">{{ fila.cierre.anio }}-{{ fila.cierre.mes|stringformat:"02d" }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ fila.cierre.iglesia.codigo }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ fila.cierre.iglesia.zona|default:"-" }}</td>
+                            <td class="px-4 py-3 text-slate-700">$ {{ fila.cierre.total_ingresos|floatformat:2 }}</td>
+                            <td class="px-4 py-3 text-slate-700">$ {{ fila.cierre.total_egresos|floatformat:2 }}</td>
+                            <td class="px-4 py-3 text-slate-700">$ {{ fila.cierre.saldo|floatformat:2 }}</td>
+                            <td class="px-4 py-3 text-slate-700">$ {{ fila.aporte_monto|floatformat:2 }}</td>
+                            <td class="px-4 py-3 text-slate-700">$ {{ fila.aporte_pagado|floatformat:2 }}</td>
+                            <td class="px-4 py-3 text-slate-700">$ {{ fila.aporte_pendiente|floatformat:2 }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ fila.estado_aporte }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td class="px-4 py-8 text-center text-sm text-slate-500" colspan="10">No hay cierres para los filtros actuales.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

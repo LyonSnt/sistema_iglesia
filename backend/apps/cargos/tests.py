@@ -1,9 +1,11 @@
 from datetime import date
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
 from apps.cargos.models import AsignacionCargo, Cargo
+from apps.documentos.models import DocumentoAdjunto
 from apps.iglesias.models import Iglesia
 from apps.miembros.models import Miembro
 from apps.usuarios.models import Usuario
@@ -215,3 +217,63 @@ class AsignacionCargoViewsTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 404)
+
+    def test_adjunta_documento_a_asignacion(self):
+        usuario = self.crear_usuario("secretario", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("cargos:document-create", args=[self.asignacion.pk]),
+            {
+                "archivo": SimpleUploadedFile("acta.pdf", b"%PDF-1.4", content_type="application/pdf"),
+                "nombre": "Acta de designacion",
+                "tipo": DocumentoAdjunto.Tipo.ACTA,
+                "descripcion": "Documento de respaldo",
+            },
+        )
+
+        self.assertRedirects(response, reverse("cargos:detail", args=[self.asignacion.pk]))
+        documento = DocumentoAdjunto.objects.get(nombre="Acta de designacion")
+        self.assertEqual(documento.iglesia, self.filial)
+        self.assertEqual(documento.content_object, self.asignacion)
+        self.assertEqual(documento.subido_por, usuario)
+
+    def test_descarga_documento_respeta_alcance_de_asignacion(self):
+        usuario = self.crear_usuario("secretario", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
+        usuario_otra = self.crear_usuario("secretario_otra", Usuario.Rol.SECRETARIO_FILIAL, self.otra_filial)
+        documento = DocumentoAdjunto.objects.create(
+            iglesia=self.otra_filial,
+            content_object=self.asignacion_otra,
+            archivo=SimpleUploadedFile("acta.pdf", b"%PDF-1.4", content_type="application/pdf"),
+            nombre="Acta externa",
+            tipo=DocumentoAdjunto.Tipo.ACTA,
+            subido_por=usuario_otra,
+        )
+        self.client.force_login(usuario)
+
+        response = self.client.get(reverse("cargos:document-download", args=[self.asignacion_otra.pk, documento.pk]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_anula_documento_de_asignacion_sin_borrar_archivo(self):
+        usuario = self.crear_usuario("secretario", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
+        documento = DocumentoAdjunto.objects.create(
+            iglesia=self.filial,
+            content_object=self.asignacion,
+            archivo=SimpleUploadedFile("acta.pdf", b"%PDF-1.4", content_type="application/pdf"),
+            nombre="Acta de designacion",
+            tipo=DocumentoAdjunto.Tipo.ACTA,
+            subido_por=usuario,
+        )
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("cargos:document-deactivate", args=[self.asignacion.pk, documento.pk]),
+            {"motivo": "Archivo reemplazado"},
+        )
+
+        self.assertRedirects(response, reverse("cargos:detail", args=[self.asignacion.pk]))
+        documento.refresh_from_db()
+        self.assertEqual(documento.estado, DocumentoAdjunto.Estado.ANULADO)
+        self.assertEqual(documento.anulado_por, usuario)
+        self.assertTrue(documento.archivo.name)

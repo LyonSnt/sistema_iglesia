@@ -47,12 +47,12 @@ class IglesiaUpdateForm(IglesiaFormMixin, forms.ModelForm):
 
 
 class NuevaFilialForm(IglesiaFormMixin, forms.ModelForm):
-    responsable_username = forms.CharField(label="Usuario del responsable")
-    responsable_nombres = forms.CharField(label="Nombres del responsable")
-    responsable_apellidos = forms.CharField(label="Apellidos del responsable")
-    responsable_email = forms.EmailField(label="Correo del responsable", required=False)
+    responsable_username = forms.CharField(label="Nombre de usuario")
+    responsable_nombres = forms.CharField(label="Nombres")
+    responsable_apellidos = forms.CharField(label="Apellidos")
+    responsable_email = forms.EmailField(label="Correo", required=False)
     responsable_rol = forms.ChoiceField(
-        label="Autoridad inicial",
+        label="Tipo de autoridad inicial",
         choices=[(rol, Usuario.Rol(rol).label) for rol in ROLES_AUTORIDAD_FILIAL],
     )
     password1 = forms.CharField(label="Contrasena temporal", widget=forms.PasswordInput)

@@ -1,0 +1,45 @@
+<section class="rounded border border-slate-200 bg-white">
+  <div class="flex flex-col gap-3 border-b border-slate-200 p-5 md:flex-row md:items-center md:justify-between">
+    <h2 class="font-semibold text-slate-950">Documentos adjuntos</h2>
+    {% if puede_gestionar_documentos %}
+      <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{{ documento_create_url }}">Adjuntar documento</a>
+    {% endif %}
+  </div>
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+      <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+        <tr>
+          <th class="px-4 py-3">Nombre</th>
+          <th class="px-4 py-3">Tipo</th>
+          <th class="px-4 py-3">Estado</th>
+          <th class="px-4 py-3">Subido por</th>
+          <th class="px-4 py-3 text-right">Acciones</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for documento in documentos %}
+          <tr>
+            <td class="px-4 py-3 font-medium text-slate-950">{{ documento.nombre }}</td>
+            <td class="px-4 py-3 text-slate-700">{{ documento.get_tipo_display }}</td>
+            <td class="px-4 py-3 text-slate-700">{{ documento.get_estado_display }}</td>
+            <td class="px-4 py-3 text-slate-700">{{ documento.subido_por }}</td>
+            <td class="px-4 py-3 text-right">
+              {% if documento.estado == "ACTIVO" %}
+                <div class="flex justify-end gap-3">
+                  <a class="text-sm font-medium text-slate-700 hover:text-slate-950" href="{% url documento_download_name objeto.pk documento.pk %}">Ver</a>
+                  {% if puede_gestionar_documentos %}
+                    <a class="text-sm font-medium text-slate-700 hover:text-slate-950" href="{% url documento_deactivate_name objeto.pk documento.pk %}">Anular</a>
+                  {% endif %}
+                </div>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td class="px-4 py-8 text-center text-sm text-slate-500" colspan="5">No hay documentos adjuntos.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>

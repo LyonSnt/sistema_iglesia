@@ -11,4 +11,7 @@ urlpatterns = [
     path("<int:pk>/aceptar/", views.AceptarTrasladoView.as_view(), name="aceptar"),
     path("<int:pk>/rechazar/", views.RechazarTrasladoView.as_view(), name="rechazar"),
     path("<int:pk>/anular/", views.AnularTrasladoView.as_view(), name="anular"),
+    path("<int:pk>/documentos/subir/", views.AdjuntarDocumentoTrasladoView.as_view(), name="document-create"),
+    path("<int:pk>/documentos/<int:documento_pk>/", views.DescargarDocumentoTrasladoView.as_view(), name="document-download"),
+    path("<int:pk>/documentos/<int:documento_pk>/anular/", views.AnularDocumentoTrasladoView.as_view(), name="document-deactivate"),
 ]

@@ -1,10 +1,15 @@
+from decimal import Decimal
+
 from django.test import TestCase
 from django.urls import reverse
 
+from apps.aportes_nacionales.models import AporteNacional
+from apps.finanzas.models import CierreMensualFinanciero
 from apps.iglesias.models import Iglesia
 from apps.miembros.models import Miembro
 from apps.traslados.models import TrasladoMiembro
 from apps.usuarios.models import Usuario
+from apps.zonas.models import Zona
 
 
 class ReporteTrasladosTests(TestCase):
@@ -112,3 +117,138 @@ class ReporteTrasladosTests(TestCase):
         response = self.client.get(reverse("reportes:traslados"))
 
         self.assertEqual(response.status_code, 200)
+
+
+class ReporteFinanzasTests(TestCase):
+    def setUp(self):
+        self.nacional = Iglesia.objects.create(
+            codigo="NACIONAL",
+            nombre="Iglesia Nacional",
+            tipo=Iglesia.Tipo.NACIONAL,
+        )
+        self.costa = Zona.objects.create(nombre="Costa", codigo="COSTA")
+        self.sierra = Zona.objects.create(nombre="Sierra", codigo="SIERRA")
+        self.filial = Iglesia.objects.create(
+            codigo="PRU",
+            nombre="Iglesia Pruebas",
+            tipo=Iglesia.Tipo.FILIAL,
+            iglesia_matriz=self.nacional,
+            zona=self.costa,
+        )
+        self.otra = Iglesia.objects.create(
+            codigo="OTR",
+            nombre="Otra Iglesia",
+            tipo=Iglesia.Tipo.FILIAL,
+            iglesia_matriz=self.nacional,
+            zona=self.sierra,
+        )
+        self.admin = self.crear_usuario("admin_nacional", Usuario.Rol.ADMIN_NACIONAL, self.nacional)
+        self.superadmin = self.crear_usuario("superadmin", Usuario.Rol.SUPERADMIN, self.nacional, is_superuser=True)
+        self.cierre = CierreMensualFinanciero.objects.create(
+            iglesia=self.filial,
+            anio=2026,
+            mes=6,
+            total_ingresos=Decimal("1000.00"),
+            total_egresos=Decimal("250.00"),
+            saldo=Decimal("750.00"),
+            cerrado_por=self.superadmin,
+        )
+        self.cierre_otra = CierreMensualFinanciero.objects.create(
+            iglesia=self.otra,
+            anio=2026,
+            mes=6,
+            total_ingresos=Decimal("500.00"),
+            total_egresos=Decimal("100.00"),
+            saldo=Decimal("400.00"),
+            cerrado_por=self.superadmin,
+        )
+        AporteNacional.objects.create(
+            iglesia=self.filial,
+            cierre=self.cierre,
+            anio=2026,
+            mes=6,
+            porcentaje=Decimal("10.00"),
+            monto_base=Decimal("1000.00"),
+            monto_aporte=Decimal("100.00"),
+            estado=AporteNacional.Estado.PAGADO,
+            numero_recibo="AP-000001",
+            fecha_pago="2026-07-05",
+            referencia_pago="DEP-001",
+            generado_por=self.superadmin,
+            registrado_pago_por=self.superadmin,
+        )
+        AporteNacional.objects.create(
+            iglesia=self.otra,
+            cierre=self.cierre_otra,
+            anio=2026,
+            mes=6,
+            porcentaje=Decimal("10.00"),
+            monto_base=Decimal("500.00"),
+            monto_aporte=Decimal("50.00"),
+            generado_por=self.superadmin,
+        )
+
+    def crear_usuario(self, username, rol, iglesia, is_superuser=False):
+        usuario = Usuario.objects.create_user(
+            username=username,
+            password="Cambiar12345!",
+            rol=rol,
+            iglesia=iglesia,
+        )
+        if is_superuser:
+            usuario.is_superuser = True
+            usuario.is_staff = True
+            usuario.save(update_fields=["is_superuser", "is_staff"])
+        return usuario
+
+    def test_admin_nacional_accede_reporte_financiero_consolidado(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("reportes:finanzas"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Reporte financiero consolidado")
+        self.assertContains(response, "PRU")
+        self.assertContains(response, "OTR")
+        self.assertEqual(response.context["totales"]["ingresos"], Decimal("1500.00"))
+        self.assertEqual(response.context["totales"]["egresos"], Decimal("350.00"))
+        self.assertEqual(response.context["totales"]["saldo"], Decimal("1150.00"))
+        self.assertEqual(response.context["totales"]["aporte"], Decimal("150.00"))
+        self.assertEqual(response.context["totales"]["pagado"], Decimal("100.00"))
+        self.assertEqual(response.context["totales"]["pendiente"], Decimal("50.00"))
+
+    def test_entrada_reportes_redirige_al_reporte_financiero(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("reportes:index"))
+
+        self.assertRedirects(response, reverse("reportes:finanzas"))
+
+    def test_filial_no_accede_reporte_financiero_nacional(self):
+        usuario = self.crear_usuario("pastor", Usuario.Rol.PASTOR_FILIAL, self.filial)
+        self.client.force_login(usuario)
+
+        response = self.client.get(reverse("reportes:finanzas"))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_reporte_financiero_filtra_por_zona(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("reportes:finanzas"), {"zona": self.costa.pk})
+
+        codigos = [fila["cierre"].iglesia.codigo for fila in response.context["filas"]]
+        self.assertEqual(codigos, ["PRU"])
+        self.assertEqual(response.context["totales"]["ingresos"], Decimal("1000.00"))
+
+    def test_reporte_financiero_filtra_por_iglesia_anio_y_mes(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(
+            reverse("reportes:finanzas"),
+            {"iglesia": self.otra.pk, "anio": "2026", "mes": "6"},
+        )
+
+        codigos = [fila["cierre"].iglesia.codigo for fila in response.context["filas"]]
+        self.assertEqual(codigos, ["OTR"])
+        self.assertEqual(response.context["totales"]["pendiente"], Decimal("50.00"))

@@ -6,19 +6,75 @@
         <div class="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ form.non_field_errors|striptags }}</div>
     {% endif %}
     {% for field in form %}
-        {% if field.is_hidden %}
-            {{ field }}
-        {% else %}
-            <label class="{% if field.field.widget.input_type == 'checkbox' %}flex items-center gap-2{% else %}block{% endif %}">
-                {% if field.field.widget.input_type == 'checkbox' %}
-                    {{ field }} {{ field.label }}
-                {% else %}
-                    <span class="text-sm font-medium text-slate-700">{{ field.label }}</span>{{ field }}
-                {% endif %}
-                {% if field.errors %}<span class="mt-1 block text-sm text-red-700">{{ field.errors|striptags }}</span>{% endif %}
-            </label>
-        {% endif %}
+        {% if field.is_hidden %}{{ field }}{% endif %}
     {% endfor %}
+    <fieldset class="space-y-4">
+        <legend class="text-base font-semibold text-slate-950">Datos de la cuenta</legend>
+        <div class="grid gap-4 md:grid-cols-2">
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">{{ form.username.label }}</span>{{ form.username }}
+                {% if form.username.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.username.errors|striptags }}</span>{% endif %}
+            </label>
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">{{ form.email.label }}</span>{{ form.email }}
+                {% if form.email.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.email.errors|striptags }}</span>{% endif %}
+            </label>
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">{{ form.first_name.label }}</span>{{ form.first_name }}
+                {% if form.first_name.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.first_name.errors|striptags }}</span>{% endif %}
+            </label>
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">{{ form.last_name.label }}</span>{{ form.last_name }}
+                {% if form.last_name.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.last_name.errors|striptags }}</span>{% endif %}
+            </label>
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">{{ form.cedula.label }}</span>{{ form.cedula }}
+                {% if form.cedula.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.cedula.errors|striptags }}</span>{% endif %}
+            </label>
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">{{ form.telefono.label }}</span>{{ form.telefono }}
+                {% if form.telefono.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.telefono.errors|striptags }}</span>{% endif %}
+            </label>
+        </div>
+    </fieldset>
+    <fieldset class="space-y-4 border-t pt-5">
+        <legend class="text-base font-semibold text-slate-950">Filial y rol</legend>
+        <p class="text-sm leading-6 text-slate-600">La filial debe existir antes de agregar esta cuenta.</p>
+        <div class="grid gap-4 md:grid-cols-2">
+            {% if not form.iglesia.is_hidden %}
+                <label class="block">
+                    <span class="text-sm font-medium text-slate-700">{{ form.iglesia.label }}</span>{{ form.iglesia }}
+                    {% if form.iglesia.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.iglesia.errors|striptags }}</span>{% endif %}
+                </label>
+            {% endif %}
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">{{ form.rol.label }}</span>{{ form.rol }}
+                {% if form.rol.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.rol.errors|striptags }}</span>{% endif %}
+            </label>
+            {% if form.is_active %}
+                <label class="flex items-center gap-2 pt-6">
+                    {{ form.is_active }} {{ form.is_active.label }}
+                    {% if form.is_active.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.is_active.errors|striptags }}</span>{% endif %}
+                </label>
+            {% endif %}
+        </div>
+    </fieldset>
+    {% if form.password1 %}
+        <fieldset class="space-y-4 border-t pt-5">
+            <legend class="text-base font-semibold text-slate-950">Acceso temporal</legend>
+            <p class="text-sm leading-6 text-slate-600">La persona debera cambiar esta contrasena al iniciar sesion por primera vez.</p>
+            <div class="grid gap-4 md:grid-cols-2">
+                <label class="block">
+                    <span class="text-sm font-medium text-slate-700">{{ form.password1.label }}</span>{{ form.password1 }}
+                    {% if form.password1.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.password1.errors|striptags }}</span>{% endif %}
+                </label>
+                <label class="block">
+                    <span class="text-sm font-medium text-slate-700">{{ form.password2.label }}</span>{{ form.password2 }}
+                    {% if form.password2.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.password2.errors|striptags }}</span>{% endif %}
+                </label>
+            </div>
+        </fieldset>
+    {% endif %}
     <div class="flex gap-2 border-t pt-5">
         <button class="rounded bg-slate-950 px-4 py-2 text-sm text-white">Guardar</button>
         <a class="rounded border px-4 py-2 text-sm"

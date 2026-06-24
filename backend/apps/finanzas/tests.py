@@ -1,9 +1,11 @@
 from datetime import date
 from decimal import Decimal
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
+from apps.documentos.models import DocumentoAdjunto
 from apps.finanzas.models import CierreMensualFinanciero, ConceptoFinanciero, MovimientoFinanciero, TipoMovimiento
 from apps.iglesias.models import Iglesia
 from apps.usuarios.models import Usuario
@@ -331,3 +333,70 @@ class FinanzasLocalesTests(TestCase):
         self.assertRedirects(response, reverse("finanzas:detail", args=[movimiento.pk]))
         movimiento.refresh_from_db()
         self.assertEqual(movimiento.estado, MovimientoFinanciero.Estado.REGISTRADO)
+
+    def test_adjunta_documento_a_movimiento_financiero(self):
+        movimiento = self.crear_movimiento()
+        usuario = self.crear_usuario("tesorero_doc", Usuario.Rol.TESORERO_FILIAL, self.filial)
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("finanzas:document-create", args=[movimiento.pk]),
+            {
+                "archivo": SimpleUploadedFile("comprobante.pdf", b"%PDF-1.4", content_type="application/pdf"),
+                "nombre": "Comprobante de ingreso",
+                "tipo": DocumentoAdjunto.Tipo.COMPROBANTE,
+                "descripcion": "Soporte del movimiento",
+            },
+        )
+
+        self.assertRedirects(response, reverse("finanzas:detail", args=[movimiento.pk]))
+        documento = DocumentoAdjunto.objects.get(nombre="Comprobante de ingreso")
+        self.assertEqual(documento.iglesia, self.filial)
+        self.assertEqual(documento.content_object, movimiento)
+        self.assertEqual(documento.subido_por, usuario)
+
+    def test_descarga_documento_financiero_respeta_alcance_por_iglesia(self):
+        usuario = self.crear_usuario("tesorero_doc", Usuario.Rol.TESORERO_FILIAL, self.filial)
+        usuario_otra = self.crear_usuario("tesorero_otra_doc", Usuario.Rol.TESORERO_FILIAL, self.otra_filial)
+        movimiento_otra = self.crear_movimiento(
+            iglesia=self.otra_filial,
+            concepto=self.concepto_otra,
+            registrado_por=usuario_otra,
+        )
+        documento = DocumentoAdjunto.objects.create(
+            iglesia=self.otra_filial,
+            content_object=movimiento_otra,
+            archivo=SimpleUploadedFile("comprobante.pdf", b"%PDF-1.4", content_type="application/pdf"),
+            nombre="Comprobante externo",
+            tipo=DocumentoAdjunto.Tipo.COMPROBANTE,
+            subido_por=usuario_otra,
+        )
+        self.client.force_login(usuario)
+
+        response = self.client.get(reverse("finanzas:document-download", args=[movimiento_otra.pk, documento.pk]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_anula_documento_financiero_sin_borrar_archivo(self):
+        usuario = self.crear_usuario("tesorero_doc", Usuario.Rol.TESORERO_FILIAL, self.filial)
+        movimiento = self.crear_movimiento(registrado_por=usuario)
+        documento = DocumentoAdjunto.objects.create(
+            iglesia=self.filial,
+            content_object=movimiento,
+            archivo=SimpleUploadedFile("comprobante.pdf", b"%PDF-1.4", content_type="application/pdf"),
+            nombre="Comprobante de ingreso",
+            tipo=DocumentoAdjunto.Tipo.COMPROBANTE,
+            subido_por=usuario,
+        )
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("finanzas:document-deactivate", args=[movimiento.pk, documento.pk]),
+            {"motivo": "Soporte reemplazado"},
+        )
+
+        self.assertRedirects(response, reverse("finanzas:detail", args=[movimiento.pk]))
+        documento.refresh_from_db()
+        self.assertEqual(documento.estado, DocumentoAdjunto.Estado.ANULADO)
+        self.assertEqual(documento.anulado_por, usuario)
+        self.assertTrue(documento.archivo.name)

@@ -1,9 +1,11 @@
 from django.db.models import Q, Sum
-from django.shortcuts import redirect
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
+from django.views import View
 from django.views.generic import CreateView, DetailView, FormView, ListView
 
-from apps.core.iglesias import filtrar_queryset_por_iglesia
+from apps.core.iglesias import filtrar_queryset_por_iglesia, usuario_es_nacional
 from apps.core.permisos import (
     ACCION_GESTIONAR,
     ACCION_VER,
@@ -11,9 +13,11 @@ from apps.core.permisos import (
     PermisoModuloMixin,
     usuario_puede,
 )
+from apps.iglesias.models import Iglesia
 
 from .forms import AporteNacionalForm, RegistrarPagoAporteForm
 from .models import AporteNacional
+from .pdf import generar_pdf_recibo_aporte
 from .servicios import registrar_pago_aporte
 
 
@@ -54,6 +58,57 @@ class AporteNacionalListView(AporteQuerysetMixin, PermisoModuloMixin, ListView):
         base = self.get_queryset()
         context["total_pendiente"] = base.filter(estado=AporteNacional.Estado.PENDIENTE).aggregate(total=Sum("monto_aporte"))["total"] or 0
         context["total_pagado"] = base.filter(estado=AporteNacional.Estado.PAGADO).aggregate(total=Sum("monto_aporte"))["total"] or 0
+        return context
+
+
+class CuentaCorrienteAportesView(AporteQuerysetMixin, PermisoModuloMixin, ListView):
+    model = AporteNacional
+    template_name = "aportes_nacionales/cuenta_corriente.html"
+    context_object_name = "aportes"
+    paginate_by = 30
+    modulo_permiso = MODULO_APORTES_NACIONALES
+    accion_permiso = ACCION_VER
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related("registrado_pago_por")
+        iglesia = self.request.GET.get("iglesia", "").strip()
+        if iglesia and usuario_es_nacional(self.request.user):
+            queryset = queryset.filter(iglesia_id=iglesia)
+        anio = self.request.GET.get("anio", "").strip()
+        if anio:
+            queryset = queryset.filter(anio=anio)
+        estado = self.request.GET.get("estado", "").strip()
+        if estado:
+            queryset = queryset.filter(estado=estado)
+        return queryset.order_by("iglesia__nombre", "-anio", "-mes")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        base = self.get_queryset()
+        total_generado = base.exclude(estado=AporteNacional.Estado.ANULADO).aggregate(
+            total=Sum("monto_aporte")
+        )["total"] or 0
+        total_pagado = base.filter(estado=AporteNacional.Estado.PAGADO).aggregate(
+            total=Sum("monto_aporte")
+        )["total"] or 0
+        total_pendiente = base.filter(estado=AporteNacional.Estado.PENDIENTE).aggregate(
+            total=Sum("monto_aporte")
+        )["total"] or 0
+        context["total_generado"] = total_generado
+        context["total_pagado"] = total_pagado
+        context["total_pendiente"] = total_pendiente
+        context["saldo"] = total_pendiente
+        context["iglesia"] = self.request.GET.get("iglesia", "").strip()
+        context["anio"] = self.request.GET.get("anio", "").strip()
+        context["estado"] = self.request.GET.get("estado", "").strip()
+        context["estados"] = AporteNacional.Estado.choices
+        es_usuario_nacional = usuario_es_nacional(self.request.user)
+        context["es_usuario_nacional"] = es_usuario_nacional
+        context["iglesias"] = (
+            Iglesia.objects.filter(tipo=Iglesia.Tipo.FILIAL, activo=True).order_by("nombre")
+            if es_usuario_nacional
+            else Iglesia.objects.none()
+        )
         return context
 
 
@@ -120,3 +175,18 @@ class RegistrarPagoAporteView(AporteQuerysetMixin, PermisoModuloMixin, FormView)
         context = super().get_context_data(**kwargs)
         context["aporte"] = self.get_object()
         return context
+
+
+class ReciboAportePDFView(AporteQuerysetMixin, PermisoModuloMixin, View):
+    modulo_permiso = MODULO_APORTES_NACIONALES
+    accion_permiso = ACCION_VER
+
+    def get(self, request, pk):
+        aporte = get_object_or_404(
+            self.get_queryset().select_related("registrado_pago_por"),
+            pk=pk,
+            estado=AporteNacional.Estado.PAGADO,
+        )
+        response = HttpResponse(generar_pdf_recibo_aporte(aporte), content_type="application/pdf")
+        response["Content-Disposition"] = f'inline; filename="{aporte.numero_recibo}.pdf"'
+        return response

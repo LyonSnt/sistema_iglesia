@@ -28,20 +28,23 @@
   familias; [x] gestion inicial de familias; [x] desactivar vinculos y ajuste
   de jefe de hogar; [x] matrimonios.
 - Cargos/directivas: [x] listado; [x] detalle; [x] creacion y edicion;
-  [x] finalizacion; [x] API de consulta; pendiente documentos adjuntos.
+  [x] finalizacion; [x] API de consulta; [x] documentos adjuntos.
 - Ministerios: [x] listado; [x] detalle; [x] creacion y edicion;
   [x] participaciones; [x] finalizacion de participaciones; pendiente API.
 - Traslados: [x] flujo origen/destino; [x] auditoria; [x] reporte inicial;
-  pendiente documentos adjuntos.
+  [x] documentos adjuntos.
 - Finanzas: [x] conceptos; [x] ingresos; [x] egresos; [x] anulacion;
-  [x] cierre mensual; pendiente documentos adjuntos y reportes.
+  [x] cierre mensual; [x] reporte consolidado; [x] documentos adjuntos.
 - Aportes nacionales: [x] generacion desde cierre mensual; [x] calculo por
   porcentaje; [x] consulta por filial; [x] registro de pago; [x] numeracion de
-  recibos; pendiente recibos PDF y cuenta corriente detallada.
+  recibos; [x] recibos PDF; [x] cuenta corriente detallada.
 - Certificados: [x] numeracion, [x] emision individual y por lote,
   [x] PDF de Escuela Dominical, [x] anulacion; pendiente validar el fondo y
   logotipo institucional, y desarrollar otros tipos documentales.
-- Inventario: historial de ubicacion, responsable y reparacion.
+- Inventario: [x] activos; [x] historial de ubicacion, responsable, reparacion
+  y baja; [x] documentos adjuntos; pendiente reportes.
+- Documentos adjuntos: [x] base reutilizable; [x] integracion en inventario,
+  finanzas, traslados y cargos.
 - Escuela Dominical: [x] niveles, [x] clases y matriculas, [x] sesiones y
   asistencia, [x] corte y promocion, [x] certificados por cada nivel y egreso.
 
@@ -49,4 +52,5 @@
 
 - [x] Completar matriz funcional inicial de permisos.
 - Documentar convenciones de formularios HTMX.
-- Documentar estrategia de reportes.
+- [x] Reporte financiero consolidado inicial.
+- Documentar estrategia general de reportes.

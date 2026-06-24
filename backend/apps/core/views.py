@@ -98,6 +98,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             "codigo": MODULO_INVENTARIO,
             "nombre": "Inventario",
             "descripcion": "Activos, responsables y ubicaciones.",
+            "url_name": "inventario:list",
         },
         {
             "codigo": MODULO_IGLESIAS,
@@ -120,7 +121,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             "codigo": MODULO_REPORTES,
             "nombre": "Reportes",
             "descripcion": "Lecturas consolidadas segun rol.",
-            "url_name": "reportes:traslados",
+            "url_name": "reportes:finanzas",
         },
         {
             "codigo": MODULO_AUDITORIA,

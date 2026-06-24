@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, FormView, ListView, UpdateView
 
+from apps.core.iglesias import usuario_es_nacional
 from apps.core.permisos import ACCION_GESTIONAR, MODULO_USUARIOS, PermisoModuloMixin
 
 from .forms import RestablecerPasswordForm, UsuarioCreateForm, UsuarioUpdateForm
@@ -53,6 +54,11 @@ class UsuarioCreateView(UsuariosGestionMixin, CreateView):
         kwargs["actor"] = self.request.user
         return kwargs
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["es_usuario_nacional"] = usuario_es_nacional(self.request.user)
+        return context
+
 
 class UsuarioUpdateView(UsuariosGestionMixin, UpdateView):
     model = Usuario
@@ -67,6 +73,11 @@ class UsuarioUpdateView(UsuariosGestionMixin, UpdateView):
         kwargs = super().get_form_kwargs()
         kwargs["actor"] = self.request.user
         return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["es_usuario_nacional"] = usuario_es_nacional(self.request.user)
+        return context
 
 
 class RestablecerPasswordView(UsuariosGestionMixin, FormView):

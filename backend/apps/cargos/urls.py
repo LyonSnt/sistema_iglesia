@@ -5,6 +5,9 @@ from .views import (
     AsignacionCargoDetailView,
     AsignacionCargoListView,
     AsignacionCargoUpdateView,
+    AdjuntarDocumentoCargoView,
+    AnularDocumentoCargoView,
+    DescargarDocumentoCargoView,
     FinalizarAsignacionCargoView,
 )
 
@@ -16,4 +19,7 @@ urlpatterns = [
     path("<int:pk>/", AsignacionCargoDetailView.as_view(), name="detail"),
     path("<int:pk>/editar/", AsignacionCargoUpdateView.as_view(), name="update"),
     path("<int:pk>/finalizar/", FinalizarAsignacionCargoView.as_view(), name="finalize"),
+    path("<int:pk>/documentos/subir/", AdjuntarDocumentoCargoView.as_view(), name="document-create"),
+    path("<int:pk>/documentos/<int:documento_pk>/", DescargarDocumentoCargoView.as_view(), name="document-download"),
+    path("<int:pk>/documentos/<int:documento_pk>/anular/", AnularDocumentoCargoView.as_view(), name="document-deactivate"),
 ]

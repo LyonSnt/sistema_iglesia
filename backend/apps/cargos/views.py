@@ -1,10 +1,14 @@
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
 from apps.core.iglesias import filtrar_queryset_por_iglesia
 from apps.core.permisos import ACCION_GESTIONAR, ACCION_VER, MODULO_CARGOS, PermisoModuloMixin, usuario_puede
+from apps.documentos.forms import AnularDocumentoAdjuntoForm, DocumentoAdjuntoForm
+from apps.documentos.models import DocumentoAdjunto
 
 from .forms import AsignacionCargoForm, FinalizarAsignacionCargoForm
 from .models import AsignacionCargo
@@ -62,6 +66,11 @@ class AsignacionCargoDetailView(AsignacionCargoQuerysetMixin, PermisoModuloMixin
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["puede_gestionar"] = usuario_puede(self.request.user, MODULO_CARGOS, ACCION_GESTIONAR)
+        context["documentos"] = documentos_asignacion(self.object)
+        context["puede_gestionar_documentos"] = context["puede_gestionar"]
+        context["documento_create_url"] = reverse("cargos:document-create", args=[self.object.pk])
+        context["documento_download_name"] = "cargos:document-download"
+        context["documento_deactivate_name"] = "cargos:document-deactivate"
         return context
 
 
@@ -119,3 +128,100 @@ class FinalizarAsignacionCargoView(AsignacionCargoQuerysetMixin, PermisoModuloMi
         context = super().get_context_data(**kwargs)
         context["asignacion"] = self.get_object()
         return context
+
+
+class AdjuntarDocumentoCargoView(AsignacionCargoQuerysetMixin, PermisoModuloMixin, FormView):
+    form_class = DocumentoAdjuntoForm
+    template_name = "documentos/documento_form.html"
+    modulo_permiso = MODULO_CARGOS
+    accion_permiso = ACCION_GESTIONAR
+
+    def get_object(self):
+        if not hasattr(self, "object"):
+            self.object = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        return self.object
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["objeto"] = self.get_object()
+        kwargs["user"] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        form.save()
+        return redirect("cargos:detail", pk=self.get_object().pk)
+
+    def get_context_data(self, **kwargs):
+        asignacion = self.get_object()
+        context = super().get_context_data(**kwargs)
+        context["seccion"] = "Cargos"
+        context["objeto_titulo"] = f"{asignacion.cargo} - {asignacion.miembro or asignacion.usuario}"
+        context["cancel_url"] = reverse("cargos:detail", args=[asignacion.pk])
+        return context
+
+
+class DescargarDocumentoCargoView(AsignacionCargoQuerysetMixin, PermisoModuloMixin, FormView):
+    modulo_permiso = MODULO_CARGOS
+    accion_permiso = ACCION_VER
+
+    def get(self, request, pk, documento_pk):
+        asignacion = get_object_or_404(self.get_queryset(), pk=pk)
+        documento = get_object_or_404(
+            documentos_asignacion(asignacion),
+            pk=documento_pk,
+            estado=DocumentoAdjunto.Estado.ACTIVO,
+        )
+        return FileResponse(documento.archivo.open("rb"), as_attachment=False, filename=documento.archivo.name.split("/")[-1])
+
+
+class AnularDocumentoCargoView(AsignacionCargoQuerysetMixin, PermisoModuloMixin, FormView):
+    form_class = AnularDocumentoAdjuntoForm
+    template_name = "documentos/documento_anular.html"
+    modulo_permiso = MODULO_CARGOS
+    accion_permiso = ACCION_GESTIONAR
+
+    def get_object(self):
+        if not hasattr(self, "object"):
+            self.object = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        return self.object
+
+    def get_documento(self):
+        if not hasattr(self, "documento"):
+            self.documento = get_object_or_404(
+                documentos_asignacion(self.get_object()),
+                pk=self.kwargs["documento_pk"],
+                estado=DocumentoAdjunto.Estado.ACTIVO,
+            )
+        return self.documento
+
+    def form_valid(self, form):
+        documento = self.get_documento()
+        documento.estado = DocumentoAdjunto.Estado.ANULADO
+        documento.anulado_por = self.request.user
+        documento.anulado_en = timezone_now()
+        documento.motivo_anulacion = form.cleaned_data["motivo"]
+        documento.full_clean()
+        documento.save(update_fields=["estado", "anulado_por", "anulado_en", "motivo_anulacion", "actualizado_en"])
+        return redirect("cargos:detail", pk=self.get_object().pk)
+
+    def get_context_data(self, **kwargs):
+        asignacion = self.get_object()
+        context = super().get_context_data(**kwargs)
+        context["seccion"] = "Cargos"
+        context["documento"] = self.get_documento()
+        context["cancel_url"] = reverse("cargos:detail", args=[asignacion.pk])
+        return context
+
+
+def documentos_asignacion(asignacion):
+    return DocumentoAdjunto.objects.filter(
+        iglesia=asignacion.iglesia,
+        content_type=ContentType.objects.get_for_model(AsignacionCargo),
+        object_id=asignacion.pk,
+    ).select_related("subido_por", "anulado_por")
+
+
+def timezone_now():
+    from django.utils import timezone
+
+    return timezone.now()

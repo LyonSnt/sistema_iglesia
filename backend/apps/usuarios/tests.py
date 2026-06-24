@@ -80,6 +80,16 @@ class GestionDelegadaUsuariosTests(TestCase):
         self.assertEqual(registro.usuario, self.pastor)
         self.assertNotIn("password", registro.valor_nuevo)
 
+    def test_formulario_local_aclara_usuario_delegado(self):
+        self.client.force_login(self.pastor)
+
+        response = self.client.get(reverse("usuarios:create"))
+
+        self.assertContains(response, "Agregar usuario local")
+        self.assertContains(response, "cuentas delegadas de tu iglesia")
+        self.assertContains(response, "Filial y rol")
+        self.assertContains(response, "Acceso temporal")
+
     def test_pastor_no_puede_asignar_rol_de_autoridad(self):
         self.client.force_login(self.pastor)
 
@@ -121,6 +131,15 @@ class GestionDelegadaUsuariosTests(TestCase):
         usuario = Usuario.objects.get(username="encargado.iluman")
         self.assertEqual(usuario.iglesia, self.otra)
         self.assertEqual(usuario.rol, Usuario.Rol.ENCARGADO_FILIAL)
+
+    def test_formulario_nacional_aclara_filial_existente(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("usuarios:create"))
+
+        self.assertContains(response, "Agregar autoridad a filial existente")
+        self.assertContains(response, "la filial ya existe")
+        self.assertContains(response, "Filial existente")
 
     def test_pastor_restablece_password_de_cuenta_delegable(self):
         self.client.force_login(self.pastor)

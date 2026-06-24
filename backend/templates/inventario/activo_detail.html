@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Activo de inventario | Ecclesia{% endblock %}
+
+{% block content %}
+  <section class="space-y-6">
+    <div class="flex flex-col gap-4 border-b border-slate-200 pb-6 md:flex-row md:items-end md:justify-between">
+      <div>
+        <a class="text-sm font-medium text-slate-500 hover:text-slate-950" href="{% url 'inventario:list' %}">Inventario</a>
+        <h1 class="mt-2 text-3xl font-semibold text-slate-950">{{ activo.codigo }} - {{ activo.nombre }}</h1>
+        <p class="mt-2 text-sm text-slate-600">{{ activo.iglesia.codigo }} - {{ activo.iglesia.nombre }}</p>
+      </div>
+      {% if puede_gestionar %}
+        <div class="flex flex-wrap gap-2">
+          <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'inventario:update' activo.pk %}">Editar</a>
+          {% if activo.estado != "DADO_DE_BAJA" %}
+            <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'inventario:movement' activo.pk %}">Registrar movimiento</a>
+            <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'inventario:document-create' activo.pk %}">Adjuntar documento</a>
+          {% endif %}
+          {% if puede_dar_baja %}
+            <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800" href="{% url 'inventario:deactivate' activo.pk %}">Dar de baja</a>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-4">
+      <div class="rounded border border-slate-200 bg-white p-5">
+        <h2 class="font-semibold text-slate-950">Estado</h2>
+        <p class="mt-3 text-sm text-slate-700">{{ activo.get_estado_display }}</p>
+      </div>
+      <div class="rounded border border-slate-200 bg-white p-5">
+        <h2 class="font-semibold text-slate-950">Categoria</h2>
+        <p class="mt-3 text-sm text-slate-700">{{ activo.categoria }}</p>
+      </div>
+      <div class="rounded border border-slate-200 bg-white p-5">
+        <h2 class="font-semibold text-slate-950">Ubicacion</h2>
+        <p class="mt-3 text-sm text-slate-700">{{ activo.ubicacion_actual }}</p>
+      </div>
+      <div class="rounded border border-slate-200 bg-white p-5">
+        <h2 class="font-semibold text-slate-950">Responsable</h2>
+        <p class="mt-3 text-sm text-slate-700">{{ activo.responsable_actual|default:"-" }}</p>
+      </div>
+    </div>
+
+    <div class="rounded border border-slate-200 bg-white p-5">
+      <h2 class="font-semibold text-slate-950">Datos del activo</h2>
+      <dl class="mt-4 grid gap-3 text-sm md:grid-cols-2">
+        <div><dt class="text-slate-500">Fecha de adquisicion</dt><dd>{{ activo.fecha_adquisicion|date:"Y-m-d"|default:"-" }}</dd></div>
+        <div><dt class="text-slate-500">Valor referencial</dt><dd>{% if activo.valor_referencial %}$ {{ activo.valor_referencial|floatformat:2 }}{% else %}-{% endif %}</dd></div>
+        <div class="md:col-span-2"><dt class="text-slate-500">Descripcion</dt><dd>{{ activo.descripcion|default:"Sin descripcion" }}</dd></div>
+      </dl>
+    </div>
+
+    <div class="overflow-hidden rounded border border-slate-200 bg-white">
+      <div class="border-b border-slate-200 p-5">
+        <h2 class="font-semibold text-slate-950">Documentos adjuntos</h2>
+      </div>
+      <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <thead class="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+          <tr>
+            <th class="px-4 py-3">Nombre</th>
+            <th class="px-4 py-3">Tipo</th>
+            <th class="px-4 py-3">Estado</th>
+            <th class="px-4 py-3">Subido por</th>
+            <th class="px-4 py-3">Acciones</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for documento in documentos %}
+            <tr class="hover:bg-slate-50">
+              <td class="px-4 py-3 font-medium text-slate-950">{{ documento.nombre }}</td>
+              <td class="px-4 py-3 text-slate-700">{{ documento.get_tipo_display }}</td>
+              <td class="px-4 py-3 text-slate-700">{{ documento.get_estado_display }}</td>
+              <td class="px-4 py-3 text-slate-700">{{ documento.subido_por }}</td>
+              <td class="px-4 py-3">
+                <div class="flex gap-3">
+                  {% if documento.estado == "ACTIVO" %}
+                    <a class="text-sm font-medium text-slate-700 hover:text-slate-950" href="{% url 'inventario:document-download' activo.pk documento.pk %}">Ver</a>
+                    {% if puede_gestionar %}
+                      <a class="text-sm font-medium text-slate-700 hover:text-slate-950" href="{% url 'inventario:document-deactivate' activo.pk documento.pk %}">Anular</a>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-slate-500">-</span>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td class="px-4 py-8 text-center text-sm text-slate-500" colspan="5">No hay documentos adjuntos.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="overflow-hidden rounded border border-slate-200 bg-white">
+      <div class="border-b border-slate-200 p-5">
+        <h2 class="font-semibold text-slate-950">Historial</h2>
+      </div>
+      <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <thead class="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+          <tr>
+            <th class="px-4 py-3">Fecha</th>
+            <th class="px-4 py-3">Tipo</th>
+            <th class="px-4 py-3">Ubicacion</th>
+            <th class="px-4 py-3">Responsable</th>
+            <th class="px-4 py-3">Detalle</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for movimiento in movimientos %}
+            <tr class="hover:bg-slate-50">
+              <td class="px-4 py-3 text-slate-700">{{ movimiento.fecha|date:"Y-m-d" }}</td>
+              <td class="px-4 py-3 text-slate-700">{{ movimiento.get_tipo_display }}</td>
+              <td class="px-4 py-3 text-slate-700">{{ movimiento.ubicacion_anterior|default:"-" }} -> {{ movimiento.ubicacion_nueva|default:"-" }}</td>
+              <td class="px-4 py-3 text-slate-700">{{ movimiento.responsable_anterior|default:"-" }} -> {{ movimiento.responsable_nuevo|default:"-" }}</td>
+              <td class="px-4 py-3 text-slate-700">{{ movimiento.detalle }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td class="px-4 py-8 text-center text-sm text-slate-500" colspan="5">No hay movimientos registrados.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

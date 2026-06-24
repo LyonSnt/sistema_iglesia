@@ -1,10 +1,14 @@
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q, Sum
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DetailView, FormView, ListView
 
 from apps.core.iglesias import filtrar_queryset_por_iglesia
 from apps.core.permisos import ACCION_GESTIONAR, ACCION_VER, MODULO_FINANZAS, PermisoModuloMixin, usuario_puede
+from apps.documentos.forms import AnularDocumentoAdjuntoForm, DocumentoAdjuntoForm
+from apps.documentos.models import DocumentoAdjunto
 
 from .forms import AnularMovimientoForm, CierreMensualFinancieroForm, ConceptoFinancieroForm, MovimientoFinancieroForm, mes_esta_cerrado
 from .models import CierreMensualFinanciero, ConceptoFinanciero, MovimientoFinanciero, TipoMovimiento
@@ -80,6 +84,11 @@ class MovimientoDetailView(FinanzasQuerysetMixin, PermisoModuloMixin, DetailView
             and movimiento.estado == MovimientoFinanciero.Estado.REGISTRADO
             and not mes_esta_cerrado(movimiento.iglesia, movimiento.fecha.year, movimiento.fecha.month)
         )
+        context["documentos"] = documentos_movimiento(movimiento)
+        context["puede_gestionar_documentos"] = context["puede_gestionar"]
+        context["documento_create_url"] = reverse("finanzas:document-create", args=[movimiento.pk])
+        context["documento_download_name"] = "finanzas:document-download"
+        context["documento_deactivate_name"] = "finanzas:document-deactivate"
         return context
 
 
@@ -213,3 +222,100 @@ class CierreMensualCreateView(PermisoModuloMixin, CreateView):
         cierre.save()
         self.object = cierre
         return redirect(self.get_success_url())
+
+
+class AdjuntarDocumentoFinanzasView(FinanzasQuerysetMixin, PermisoModuloMixin, FormView):
+    form_class = DocumentoAdjuntoForm
+    template_name = "documentos/documento_form.html"
+    modulo_permiso = MODULO_FINANZAS
+    accion_permiso = ACCION_GESTIONAR
+
+    def get_object(self):
+        if not hasattr(self, "object"):
+            self.object = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        return self.object
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["objeto"] = self.get_object()
+        kwargs["user"] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        form.save()
+        return redirect("finanzas:detail", pk=self.get_object().pk)
+
+    def get_context_data(self, **kwargs):
+        movimiento = self.get_object()
+        context = super().get_context_data(**kwargs)
+        context["seccion"] = "Finanzas locales"
+        context["objeto_titulo"] = f"{movimiento.concepto.nombre} - {movimiento.fecha:%Y-%m-%d}"
+        context["cancel_url"] = reverse("finanzas:detail", args=[movimiento.pk])
+        return context
+
+
+class DescargarDocumentoFinanzasView(FinanzasQuerysetMixin, PermisoModuloMixin, FormView):
+    modulo_permiso = MODULO_FINANZAS
+    accion_permiso = ACCION_VER
+
+    def get(self, request, pk, documento_pk):
+        movimiento = get_object_or_404(self.get_queryset(), pk=pk)
+        documento = get_object_or_404(
+            documentos_movimiento(movimiento),
+            pk=documento_pk,
+            estado=DocumentoAdjunto.Estado.ACTIVO,
+        )
+        return FileResponse(documento.archivo.open("rb"), as_attachment=False, filename=documento.archivo.name.split("/")[-1])
+
+
+class AnularDocumentoFinanzasView(FinanzasQuerysetMixin, PermisoModuloMixin, FormView):
+    form_class = AnularDocumentoAdjuntoForm
+    template_name = "documentos/documento_anular.html"
+    modulo_permiso = MODULO_FINANZAS
+    accion_permiso = ACCION_GESTIONAR
+
+    def get_object(self):
+        if not hasattr(self, "object"):
+            self.object = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        return self.object
+
+    def get_documento(self):
+        if not hasattr(self, "documento"):
+            self.documento = get_object_or_404(
+                documentos_movimiento(self.get_object()),
+                pk=self.kwargs["documento_pk"],
+                estado=DocumentoAdjunto.Estado.ACTIVO,
+            )
+        return self.documento
+
+    def form_valid(self, form):
+        documento = self.get_documento()
+        documento.estado = DocumentoAdjunto.Estado.ANULADO
+        documento.anulado_por = self.request.user
+        documento.anulado_en = timezone_now()
+        documento.motivo_anulacion = form.cleaned_data["motivo"]
+        documento.full_clean()
+        documento.save(update_fields=["estado", "anulado_por", "anulado_en", "motivo_anulacion", "actualizado_en"])
+        return redirect("finanzas:detail", pk=self.get_object().pk)
+
+    def get_context_data(self, **kwargs):
+        movimiento = self.get_object()
+        context = super().get_context_data(**kwargs)
+        context["seccion"] = "Finanzas locales"
+        context["documento"] = self.get_documento()
+        context["cancel_url"] = reverse("finanzas:detail", args=[movimiento.pk])
+        return context
+
+
+def documentos_movimiento(movimiento):
+    return DocumentoAdjunto.objects.filter(
+        iglesia=movimiento.iglesia,
+        content_type=ContentType.objects.get_for_model(MovimientoFinanciero),
+        object_id=movimiento.pk,
+    ).select_related("subido_por", "anulado_por")
+
+
+def timezone_now():
+    from django.utils import timezone
+
+    return timezone.now()

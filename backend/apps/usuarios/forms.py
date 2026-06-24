@@ -68,6 +68,16 @@ class UsuarioCreateForm(UsuarioFormMixin, forms.ModelForm):
             "iglesia",
             "rol",
         )
+        labels = {
+            "username": "Nombre de usuario",
+            "first_name": "Nombres",
+            "last_name": "Apellidos",
+            "email": "Correo",
+            "cedula": "Cedula",
+            "telefono": "Telefono",
+            "iglesia": "Filial existente",
+            "rol": "Rol",
+        }
 
     def __init__(self, *args, actor=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -101,6 +111,17 @@ class UsuarioUpdateForm(UsuarioFormMixin, forms.ModelForm):
             "rol",
             "is_active",
         )
+        labels = {
+            "username": "Nombre de usuario",
+            "first_name": "Nombres",
+            "last_name": "Apellidos",
+            "email": "Correo",
+            "cedula": "Cedula",
+            "telefono": "Telefono",
+            "iglesia": "Filial existente",
+            "rol": "Rol",
+            "is_active": "Cuenta activa",
+        }
 
     def __init__(self, *args, actor=None, **kwargs):
         super().__init__(*args, **kwargs)

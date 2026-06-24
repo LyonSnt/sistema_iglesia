@@ -3,7 +3,7 @@
     {% if object %}
         Editar usuario
     {% else %}
-        Crear usuario
+        Agregar usuario
     {% endif %}
     | Ecclesia
 {% endblock %}
@@ -16,10 +16,19 @@
                 <h1 class="mt-2 text-3xl font-semibold">
                     {% if object %}
                         Editar usuario
+                    {% elif es_usuario_nacional %}
+                        Agregar autoridad a filial existente
                     {% else %}
-                        Crear usuario
+                        Agregar usuario local
                     {% endif %}
                 </h1>
+                {% if not object %}
+                    {% if es_usuario_nacional %}
+                        <p class="mt-2 text-sm leading-6 text-slate-600">Usa esta pantalla cuando la filial ya existe y necesita una autoridad inicial o de reemplazo.</p>
+                    {% else %}
+                        <p class="mt-2 text-sm leading-6 text-slate-600">Usa esta pantalla para cuentas delegadas de tu iglesia, como secretaria, tesoreria o lectura.</p>
+                    {% endif %}
+                {% endif %}
             </div>
             {% if object %}<a class="rounded border px-4 py-2 text-sm"
    href="{% url 'usuarios:password-reset' object.pk %}">Restablecer contrasena</a>{% endif %}

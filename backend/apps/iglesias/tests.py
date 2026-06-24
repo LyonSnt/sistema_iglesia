@@ -65,6 +65,16 @@ class GestionFilialesTests(TestCase):
         self.assertEqual(usuario.iglesia, iglesia)
         self.assertEqual(usuario.rol, Usuario.Rol.PASTOR_FILIAL)
 
+    def test_alta_filial_distingue_iglesia_autoridad_y_acceso_temporal(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("iglesias:create"))
+
+        self.assertContains(response, "Alta de filial")
+        self.assertContains(response, "Datos de la iglesia")
+        self.assertContains(response, "Autoridad inicial")
+        self.assertContains(response, "Acceso temporal")
+
     def test_error_en_responsable_no_crea_filial(self):
         Usuario.objects.create_user(username="juan.perez", password="x")
         self.client.force_login(self.admin)

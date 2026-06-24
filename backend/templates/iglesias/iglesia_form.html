@@ -8,18 +8,20 @@
     | Ecclesia
 {% endblock %}
 {% block content %}
-    <section class="mx-auto max-w-3xl space-y-6">
+    <section class="mx-auto max-w-4xl space-y-6">
         <div class="border-b pb-6">
             <a class="text-sm text-slate-500" href="{% url 'iglesias:list' %}">Iglesias</a>
             <h1 class="mt-2 text-3xl font-semibold">
                 {% if object %}
                     Editar filial
                 {% else %}
-                    Crear filial y autoridad inicial
+                    Alta de filial
                 {% endif %}
             </h1>
             {% if not object %}
-                <p class="mt-2 text-sm text-slate-600">La cuenta inicial sera pastor o encargado y administrara los usuarios locales permitidos.</p>
+                <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                    Registra la iglesia filial y su primera autoridad local en una sola operacion. Despues, esa autoridad podra crear las cuentas locales delegadas.
+                </p>
             {% endif %}
         </div>
         <form class="space-y-5 rounded border bg-white p-5"
@@ -29,16 +31,92 @@
             {% if form.non_field_errors %}
                 <div class="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ form.non_field_errors|striptags }}</div>
             {% endif %}
-            {% for field in form %}
-                <label class="{% if field.field.widget.input_type == 'checkbox' %}flex items-center gap-2{% else %}block{% endif %}">
-                    {% if field.field.widget.input_type == 'checkbox' %}
-                        {{ field }} {{ field.label }}
-                    {% else %}
-                        <span class="text-sm font-medium text-slate-700">{{ field.label }}</span>{{ field }}
-                    {% endif %}
-                    {% if field.errors %}<span class="mt-1 block text-sm text-red-700">{{ field.errors|striptags }}</span>{% endif %}
-                </label>
-            {% endfor %}
+            {% if object %}
+                {% for field in form %}
+                    <label class="{% if field.field.widget.input_type == 'checkbox' %}flex items-center gap-2{% else %}block{% endif %}">
+                        {% if field.field.widget.input_type == 'checkbox' %}
+                            {{ field }} {{ field.label }}
+                        {% else %}
+                            <span class="text-sm font-medium text-slate-700">{{ field.label }}</span>{{ field }}
+                        {% endif %}
+                        {% if field.errors %}<span class="mt-1 block text-sm text-red-700">{{ field.errors|striptags }}</span>{% endif %}
+                    </label>
+                {% endfor %}
+            {% else %}
+                <fieldset class="space-y-4">
+                    <legend class="text-base font-semibold text-slate-950">Datos de la iglesia</legend>
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-700">{{ form.codigo.label }}</span>{{ form.codigo }}
+                            {% if form.codigo.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.codigo.errors|striptags }}</span>{% endif %}
+                        </label>
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-700">{{ form.nombre.label }}</span>{{ form.nombre }}
+                            {% if form.nombre.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.nombre.errors|striptags }}</span>{% endif %}
+                        </label>
+                        <label class="block md:col-span-2">
+                            <span class="text-sm font-medium text-slate-700">{{ form.direccion.label }}</span>{{ form.direccion }}
+                            {% if form.direccion.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.direccion.errors|striptags }}</span>{% endif %}
+                        </label>
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-700">{{ form.telefono.label }}</span>{{ form.telefono }}
+                            {% if form.telefono.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.telefono.errors|striptags }}</span>{% endif %}
+                        </label>
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-700">{{ form.email.label }}</span>{{ form.email }}
+                            {% if form.email.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.email.errors|striptags }}</span>{% endif %}
+                        </label>
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-700">{{ form.zona.label }}</span>{{ form.zona }}
+                            {% if form.zona.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.zona.errors|striptags }}</span>{% endif %}
+                        </label>
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-700">{{ form.responsable_principal.label }}</span>{{ form.responsable_principal }}
+                            {% if form.responsable_principal.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.responsable_principal.errors|striptags }}</span>{% endif %}
+                        </label>
+                    </div>
+                </fieldset>
+                <fieldset class="space-y-4 border-t pt-5">
+                    <legend class="text-base font-semibold text-slate-950">Autoridad inicial</legend>
+                    <p class="text-sm leading-6 text-slate-600">Esta cuenta queda asociada a la nueva filial como Pastor o Encargado.</p>
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-700">{{ form.responsable_rol.label }}</span>{{ form.responsable_rol }}
+                            {% if form.responsable_rol.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.responsable_rol.errors|striptags }}</span>{% endif %}
+                        </label>
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-700">{{ form.responsable_username.label }}</span>{{ form.responsable_username }}
+                            {% if form.responsable_username.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.responsable_username.errors|striptags }}</span>{% endif %}
+                        </label>
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-700">{{ form.responsable_nombres.label }}</span>{{ form.responsable_nombres }}
+                            {% if form.responsable_nombres.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.responsable_nombres.errors|striptags }}</span>{% endif %}
+                        </label>
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-700">{{ form.responsable_apellidos.label }}</span>{{ form.responsable_apellidos }}
+                            {% if form.responsable_apellidos.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.responsable_apellidos.errors|striptags }}</span>{% endif %}
+                        </label>
+                        <label class="block md:col-span-2">
+                            <span class="text-sm font-medium text-slate-700">{{ form.responsable_email.label }}</span>{{ form.responsable_email }}
+                            {% if form.responsable_email.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.responsable_email.errors|striptags }}</span>{% endif %}
+                        </label>
+                    </div>
+                </fieldset>
+                <fieldset class="space-y-4 border-t pt-5">
+                    <legend class="text-base font-semibold text-slate-950">Acceso temporal</legend>
+                    <p class="text-sm leading-6 text-slate-600">La autoridad inicial debera cambiar esta contrasena en su primer acceso.</p>
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-700">{{ form.password1.label }}</span>{{ form.password1 }}
+                            {% if form.password1.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.password1.errors|striptags }}</span>{% endif %}
+                        </label>
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-700">{{ form.password2.label }}</span>{{ form.password2 }}
+                            {% if form.password2.errors %}<span class="mt-1 block text-sm text-red-700">{{ form.password2.errors|striptags }}</span>{% endif %}
+                        </label>
+                    </div>
+                </fieldset>
+            {% endif %}
             <div class="flex gap-2 border-t pt-5">
                 <button class="rounded bg-slate-950 px-4 py-2 text-sm text-white">Guardar</button>
                 <a class="rounded border px-4 py-2 text-sm"

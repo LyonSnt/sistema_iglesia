@@ -2,9 +2,12 @@ from django.urls import path
 
 from .views import (
     AnularMovimientoView,
+    AdjuntarDocumentoFinanzasView,
+    AnularDocumentoFinanzasView,
     CierreMensualCreateView,
     CierreMensualListView,
     ConceptoCreateView,
+    DescargarDocumentoFinanzasView,
     MovimientoCreateView,
     MovimientoDetailView,
     MovimientoListView,
@@ -20,4 +23,7 @@ urlpatterns = [
     path("cierres/crear/", CierreMensualCreateView.as_view(), name="cierre-create"),
     path("<int:pk>/", MovimientoDetailView.as_view(), name="detail"),
     path("<int:pk>/anular/", AnularMovimientoView.as_view(), name="annul"),
+    path("<int:pk>/documentos/subir/", AdjuntarDocumentoFinanzasView.as_view(), name="document-create"),
+    path("<int:pk>/documentos/<int:documento_pk>/", DescargarDocumentoFinanzasView.as_view(), name="document-download"),
+    path("<int:pk>/documentos/<int:documento_pk>/anular/", AnularDocumentoFinanzasView.as_view(), name="document-deactivate"),
 ]

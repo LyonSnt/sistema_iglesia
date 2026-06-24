@@ -1,7 +1,9 @@
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
 from apps.auditoria.models import RegistroAuditoria
+from apps.documentos.models import DocumentoAdjunto
 from apps.familias.models import Familia, MiembroFamilia
 from apps.iglesias.models import Iglesia
 from apps.miembros.models import Miembro
@@ -222,3 +224,65 @@ class TrasladoMiembroTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "ya tiene un traslado pendiente")
         self.assertEqual(TrasladoMiembro.objects.count(), 1)
+
+    def test_adjunta_documento_a_traslado_desde_destino(self):
+        traslado = self.crear_traslado()
+        usuario_destino = self.crear_usuario("secretario_destino_doc", Usuario.Rol.SECRETARIO_FILIAL, self.destino)
+        self.client.force_login(usuario_destino)
+
+        response = self.client.post(
+            reverse("traslados:document-create", args=[traslado.pk]),
+            {
+                "archivo": SimpleUploadedFile("solicitud.pdf", b"%PDF-1.4", content_type="application/pdf"),
+                "nombre": "Solicitud firmada",
+                "tipo": DocumentoAdjunto.Tipo.ACTA,
+                "descripcion": "Respaldo del traslado",
+            },
+        )
+
+        self.assertRedirects(response, reverse("traslados:detail", args=[traslado.pk]))
+        documento = DocumentoAdjunto.objects.get(nombre="Solicitud firmada")
+        self.assertEqual(documento.iglesia, self.origen)
+        self.assertEqual(documento.content_object, traslado)
+        self.assertEqual(documento.subido_por, usuario_destino)
+
+    def test_tercera_iglesia_no_descarga_documento_de_traslado(self):
+        traslado = self.crear_traslado()
+        usuario_origen = self.crear_usuario("secretario_origen_doc", Usuario.Rol.SECRETARIO_FILIAL, self.origen)
+        documento = DocumentoAdjunto.objects.create(
+            iglesia=self.origen,
+            content_object=traslado,
+            archivo=SimpleUploadedFile("solicitud.pdf", b"%PDF-1.4", content_type="application/pdf"),
+            nombre="Solicitud firmada",
+            tipo=DocumentoAdjunto.Tipo.ACTA,
+            subido_por=usuario_origen,
+        )
+        usuario_otra = self.crear_usuario("secretario_otra_doc", Usuario.Rol.SECRETARIO_FILIAL, self.otra)
+        self.client.force_login(usuario_otra)
+
+        response = self.client.get(reverse("traslados:document-download", args=[traslado.pk, documento.pk]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_anula_documento_de_traslado(self):
+        traslado = self.crear_traslado()
+        usuario_origen = self.crear_usuario("secretario_origen_doc", Usuario.Rol.SECRETARIO_FILIAL, self.origen)
+        documento = DocumentoAdjunto.objects.create(
+            iglesia=self.origen,
+            content_object=traslado,
+            archivo=SimpleUploadedFile("solicitud.pdf", b"%PDF-1.4", content_type="application/pdf"),
+            nombre="Solicitud firmada",
+            tipo=DocumentoAdjunto.Tipo.ACTA,
+            subido_por=usuario_origen,
+        )
+        self.client.force_login(usuario_origen)
+
+        response = self.client.post(
+            reverse("traslados:document-deactivate", args=[traslado.pk, documento.pk]),
+            {"motivo": "Documento corregido"},
+        )
+
+        self.assertRedirects(response, reverse("traslados:detail", args=[traslado.pk]))
+        documento.refresh_from_db()
+        self.assertEqual(documento.estado, DocumentoAdjunto.Estado.ANULADO)
+        self.assertEqual(documento.anulado_por, usuario_origen)

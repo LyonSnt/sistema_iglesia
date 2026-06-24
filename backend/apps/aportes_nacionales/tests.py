@@ -312,6 +312,114 @@ class AportesNacionalesTests(TestCase):
         self.assertEqual(response.context["total_pendiente"], Decimal("100.00"))
         self.assertEqual(response.context["total_pagado"], Decimal("50.00"))
 
+    def test_cuenta_corriente_muestra_totales_detallados(self):
+        AporteNacional.objects.create(
+            iglesia=self.filial,
+            cierre=self.cierre,
+            anio=2026,
+            mes=6,
+            porcentaje=Decimal("10.00"),
+            monto_base=Decimal("1000.00"),
+            monto_aporte=Decimal("100.00"),
+            generado_por=self.superadmin,
+        )
+        AporteNacional.objects.create(
+            iglesia=self.otra_filial,
+            cierre=self.cierre_otra,
+            anio=2026,
+            mes=6,
+            porcentaje=Decimal("10.00"),
+            monto_base=Decimal("500.00"),
+            monto_aporte=Decimal("50.00"),
+            estado=AporteNacional.Estado.PAGADO,
+            numero_recibo="AP-000001",
+            fecha_pago="2026-07-05",
+            referencia_pago="DEP-001",
+            generado_por=self.superadmin,
+            registrado_pago_por=self.superadmin,
+        )
+        self.client.force_login(self.superadmin)
+
+        response = self.client.get(reverse("aportes_nacionales:account"))
+
+        self.assertContains(response, "Cuenta corriente")
+        self.assertEqual(response.context["total_generado"], Decimal("150.00"))
+        self.assertEqual(response.context["total_pagado"], Decimal("50.00"))
+        self.assertEqual(response.context["saldo"], Decimal("100.00"))
+        self.assertContains(response, "AP-000001")
+
+    def test_cuenta_corriente_filial_respeta_alcance_por_iglesia(self):
+        AporteNacional.objects.create(
+            iglesia=self.filial,
+            cierre=self.cierre,
+            anio=2026,
+            mes=6,
+            porcentaje=Decimal("10.00"),
+            monto_base=Decimal("1000.00"),
+            monto_aporte=Decimal("100.00"),
+            generado_por=self.superadmin,
+        )
+        AporteNacional.objects.create(
+            iglesia=self.otra_filial,
+            cierre=self.cierre_otra,
+            anio=2026,
+            mes=6,
+            porcentaje=Decimal("10.00"),
+            monto_base=Decimal("500.00"),
+            monto_aporte=Decimal("50.00"),
+            generado_por=self.superadmin,
+        )
+        usuario = self.crear_usuario("tesorero", Usuario.Rol.TESORERO_FILIAL, self.filial)
+        self.client.force_login(usuario)
+
+        response = self.client.get(reverse("aportes_nacionales:account"))
+
+        self.assertContains(response, "PRUEBAS")
+        self.assertNotContains(response, "OTRA")
+        self.assertEqual(response.context["total_generado"], Decimal("100.00"))
+
+    def test_recibo_pdf_solo_para_aporte_pagado(self):
+        aporte = AporteNacional.objects.create(
+            iglesia=self.filial,
+            cierre=self.cierre,
+            anio=2026,
+            mes=6,
+            porcentaje=Decimal("10.00"),
+            monto_base=Decimal("1000.00"),
+            monto_aporte=Decimal("100.00"),
+            estado=AporteNacional.Estado.PAGADO,
+            numero_recibo="AP-000001",
+            fecha_pago="2026-07-05",
+            referencia_pago="DEP-001",
+            generado_por=self.superadmin,
+            registrado_pago_por=self.superadmin,
+        )
+        self.client.force_login(self.superadmin)
+
+        response = self.client.get(reverse("aportes_nacionales:receipt-pdf", args=[aporte.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertEqual(response.content[:4], b"%PDF")
+        self.assertIn("AP-000001.pdf", response["Content-Disposition"])
+
+    def test_recibo_pdf_no_existe_para_aporte_pendiente(self):
+        aporte = AporteNacional.objects.create(
+            iglesia=self.filial,
+            cierre=self.cierre,
+            anio=2026,
+            mes=6,
+            porcentaje=Decimal("10.00"),
+            monto_base=Decimal("1000.00"),
+            monto_aporte=Decimal("100.00"),
+            generado_por=self.superadmin,
+        )
+        self.client.force_login(self.superadmin)
+
+        response = self.client.get(reverse("aportes_nacionales:receipt-pdf", args=[aporte.pk]))
+
+        self.assertEqual(response.status_code, 404)
+
     def test_seed_inicial_crea_parametros_de_recibos(self):
         ParametroGeneral.objects.filter(
             clave__in=["APORTES_RECIBOS_PREFIJO", "APORTES_RECIBOS_SECUENCIAL_INICIAL"]
