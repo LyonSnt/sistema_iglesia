@@ -8,3 +8,16 @@ services:
       "
     ports:
       - "127.0.0.1:${APP_PORT:-8020}:8020"
+    environment:
+      DEBUG: "false"
+      WAHA_BASE_URL: "http://waha:3000"
+
+  celery_worker:
+    environment:
+      DEBUG: "false"
+      WAHA_BASE_URL: "http://waha:3000"
+
+  celery_beat:
+    environment:
+      DEBUG: "false"
+      WAHA_BASE_URL: "http://waha:3000"

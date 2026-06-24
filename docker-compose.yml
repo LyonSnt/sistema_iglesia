@@ -9,6 +9,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      waha:
+        condition: service_started
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
@@ -53,6 +55,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      waha:
+        condition: service_started
     volumes:
       - media_volume:/app/media
     restart: unless-stopped
@@ -70,7 +74,20 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  waha:
+    image: devlikeapro/waha:latest
+    container_name: sistema_iglesia_waha
+    env_file:
+      - ${ENV_FILE:-.env}
+    environment:
+      WHATSAPP_DEFAULT_ENGINE: NOWEB
+    volumes:
+      - waha_data:/app/.sessions
+    restart: unless-stopped
+    mem_limit: 512m
+
 volumes:
   postgres_data:
   static_volume:
   media_volume:
+  waha_data:

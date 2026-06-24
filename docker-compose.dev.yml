@@ -18,6 +18,7 @@ services:
       - "${APP_PORT:-8020}:8020"
     environment:
       DEBUG: "true"
+      WAHA_BASE_URL: "http://waha:3000"
 
   celery_worker:
     build:
@@ -28,6 +29,7 @@ services:
       - ./backend:/app
     environment:
       DEBUG: "true"
+      WAHA_BASE_URL: "http://waha:3000"
 
   celery_beat:
     build:
@@ -42,6 +44,10 @@ services:
   db:
     ports:
       - "${DB_PUBLIC_PORT:-5434}:5432"
+
+  waha:
+    ports:
+      - "${WAHA_PORT:-3000}:3000"
 
   tailwind:
     image: node:20-alpine
