@@ -48,6 +48,7 @@
             <th class="px-4 py-3">Saldo</th>
             <th class="px-4 py-3">Estado</th>
             <th class="px-4 py-3">Cerrado por</th>
+            <th class="px-4 py-3">Acciones</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
@@ -60,10 +61,17 @@
               <td class="px-4 py-3 text-slate-700">$ {{ cierre.saldo|floatformat:2 }}</td>
               <td class="px-4 py-3 text-slate-700">{{ cierre.get_estado_display }}</td>
               <td class="px-4 py-3 text-slate-700">{{ cierre.cerrado_por }}</td>
+              <td class="px-4 py-3">
+                {% if puede_gestionar and cierre.estado == "CERRADO" and not cierre.aporte_nacional %}
+                  <a class="text-sm font-medium text-slate-700 hover:text-slate-950" href="{% url 'finanzas:cierre-annul' cierre.pk %}">Anular para corregir</a>
+                {% else %}
+                  <span class="text-sm text-slate-400">-</span>
+                {% endif %}
+              </td>
             </tr>
           {% empty %}
             <tr>
-              <td class="px-4 py-8 text-center text-sm text-slate-500" colspan="7">
+              <td class="px-4 py-8 text-center text-sm text-slate-500" colspan="8">
                 No hay cierres para los filtros actuales.
               </td>
             </tr>

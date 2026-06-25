@@ -50,6 +50,9 @@ Acciones criticas:
 - Cargos.
 - Iglesias.
 
+La cobertura esperada por modulo esta documentada en
+[`auditoria.md`](auditoria.md).
+
 ## Regla
 
 No se debe confiar en datos de iglesia, usuario o permisos enviados por el cliente.

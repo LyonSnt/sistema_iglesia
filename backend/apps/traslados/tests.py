@@ -1,12 +1,23 @@
+from datetime import date
+
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.auditoria.models import RegistroAuditoria
+from apps.cargos.models import AsignacionCargo, Cargo
 from apps.documentos.models import DocumentoAdjunto
+from apps.escuela_dominical.models import (
+    ClaseEscuelaDominical,
+    MatriculaEscuelaDominical,
+    NivelEscuelaDominical,
+)
 from apps.familias.models import Familia, MiembroFamilia
 from apps.iglesias.models import Iglesia
 from apps.miembros.models import Miembro
+from apps.ministerios.models import Ministerio, ParticipacionMinisterio
+from apps.parametros.models import Periodo
 from apps.traslados.models import TrasladoMiembro
 from apps.usuarios.models import Usuario
 
@@ -168,6 +179,81 @@ class TrasladoMiembroTests(TestCase):
         self.assertEqual(self.miembro.iglesia, self.destino)
         self.assertFalse(self.vinculo_familiar.activo)
         self.assertTrue(RegistroAuditoria.objects.filter(modulo="traslados", accion="ACEPTAR").exists())
+
+    def test_aceptar_traslado_cierra_asignaciones_locales_de_origen(self):
+        cargo = Cargo.objects.create(nombre="Diacono")
+        asignacion = AsignacionCargo.objects.create(
+            iglesia=self.origen,
+            cargo=cargo,
+            miembro=self.miembro,
+            fecha_inicio=date(2026, 1, 1),
+        )
+        ministerio = Ministerio.objects.create(
+            iglesia=self.origen,
+            nombre="Alabanza",
+            responsable=self.miembro,
+        )
+        participacion = ParticipacionMinisterio.objects.create(
+            ministerio=ministerio,
+            miembro=self.miembro,
+            cargo="Vocalista",
+            fecha_inicio=date(2026, 1, 1),
+        )
+        periodo = Periodo.objects.create(
+            nombre="2026",
+            fecha_inicio=date(2026, 1, 1),
+            fecha_fin=date(2026, 12, 31),
+        )
+        nivel = NivelEscuelaDominical.objects.create(
+            iglesia=self.origen,
+            nombre="Intermedios",
+            edad_minima=10,
+            edad_maxima=12,
+        )
+        clase = ClaseEscuelaDominical.objects.create(
+            iglesia=self.origen,
+            nombre="Intermedios A",
+            nivel=nivel,
+            periodo=periodo,
+        )
+        matricula = MatriculaEscuelaDominical.objects.create(
+            clase=clase,
+            alumno=self.miembro,
+            fecha_inscripcion=date(2026, 1, 5),
+        )
+        traslado = self.crear_traslado()
+        usuario_destino = self.crear_usuario("pastor_destino_integral", Usuario.Rol.PASTOR_FILIAL, self.destino)
+        self.client.force_login(usuario_destino)
+
+        response = self.client.post(
+            reverse("traslados:aceptar", args=[traslado.pk]),
+            {"observacion": "Recibido con historial cerrado"},
+        )
+
+        fecha_cierre = timezone.localdate()
+        self.assertRedirects(response, reverse("traslados:detail", args=[traslado.pk]))
+        self.familia.refresh_from_db()
+        self.vinculo_familiar.refresh_from_db()
+        asignacion.refresh_from_db()
+        ministerio.refresh_from_db()
+        participacion.refresh_from_db()
+        matricula.refresh_from_db()
+        self.assertFalse(self.familia.activo)
+        self.assertFalse(self.vinculo_familiar.activo)
+        self.assertEqual(asignacion.estado, AsignacionCargo.Estado.FINALIZADO)
+        self.assertEqual(asignacion.fecha_fin, fecha_cierre)
+        self.assertEqual(asignacion.observacion, "Cierre automatico por traslado aceptado.")
+        self.assertIsNone(ministerio.responsable)
+        self.assertEqual(participacion.estado, ParticipacionMinisterio.Estado.FINALIZADO)
+        self.assertEqual(participacion.fecha_fin, fecha_cierre)
+        self.assertFalse(participacion.activo)
+        self.assertEqual(matricula.estado, MatriculaEscuelaDominical.Estado.RETIRADA)
+        self.assertEqual(matricula.fecha_salida, fecha_cierre)
+        self.assertFalse(matricula.activo)
+        auditoria = RegistroAuditoria.objects.get(modulo="traslados", accion="ACEPTAR")
+        self.assertEqual(auditoria.valor_nuevo["cierres_origen"]["asignaciones_cargos"], 1)
+        self.assertEqual(auditoria.valor_nuevo["cierres_origen"]["participaciones_ministerios"], 1)
+        self.assertEqual(auditoria.valor_nuevo["cierres_origen"]["matriculas_escuela_dominical"], 1)
 
     def test_origen_no_puede_aceptar_su_propio_traslado(self):
         traslado = self.crear_traslado()

@@ -66,6 +66,11 @@ class AportesNacionalesTests(TestCase):
             valor="1",
             tipo_dato=ParametroGeneral.TipoDato.ENTERO,
         )
+        self.admin_nacional = self.crear_usuario(
+            "admin_nacional",
+            Usuario.Rol.ADMIN_NACIONAL,
+            self.nacional,
+        )
 
     def crear_usuario(self, username, rol, iglesia, is_superuser=False):
         usuario = Usuario.objects.create_user(
@@ -172,6 +177,26 @@ class AportesNacionalesTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_admin_nacional_consulta_aportes_pero_no_genera(self):
+        AporteNacional.objects.create(
+            iglesia=self.filial,
+            cierre=self.cierre,
+            anio=2026,
+            mes=6,
+            porcentaje=Decimal("10.00"),
+            monto_base=Decimal("1000.00"),
+            monto_aporte=Decimal("100.00"),
+            generado_por=self.superadmin,
+        )
+        self.client.force_login(self.admin_nacional)
+
+        response_list = self.client.get(reverse("aportes_nacionales:list"))
+        response_create = self.client.get(reverse("aportes_nacionales:create"))
+
+        self.assertEqual(response_list.status_code, 200)
+        self.assertContains(response_list, "PRUEBAS")
+        self.assertEqual(response_create.status_code, 403)
+
     def test_pastor_consulta_detalle_de_su_iglesia(self):
         aporte = AporteNacional.objects.create(
             iglesia=self.filial,
@@ -234,6 +259,30 @@ class AportesNacionalesTests(TestCase):
         self.assertEqual(aporte.referencia_pago, "DEP-001")
         self.assertEqual(aporte.registrado_pago_por, self.superadmin)
         self.assertEqual(ParametroGeneral.objects.get(clave="APORTES_RECIBOS_SECUENCIAL_INICIAL").valor, "2")
+
+    def test_admin_nacional_registra_pago_y_reserva_recibo(self):
+        aporte = AporteNacional.objects.create(
+            iglesia=self.filial,
+            cierre=self.cierre,
+            anio=2026,
+            mes=6,
+            porcentaje=Decimal("10.00"),
+            monto_base=Decimal("1000.00"),
+            monto_aporte=Decimal("100.00"),
+            generado_por=self.superadmin,
+        )
+        self.client.force_login(self.admin_nacional)
+
+        response = self.client.post(
+            reverse("aportes_nacionales:payment", args=[aporte.pk]),
+            {"fecha_pago": "2026-07-05", "referencia_pago": "DEP-001", "observacion": "Pago recibido"},
+        )
+
+        self.assertRedirects(response, reverse("aportes_nacionales:detail", args=[aporte.pk]))
+        aporte.refresh_from_db()
+        self.assertEqual(aporte.estado, AporteNacional.Estado.PAGADO)
+        self.assertEqual(aporte.numero_recibo, "AP-000001")
+        self.assertEqual(aporte.registrado_pago_por, self.admin_nacional)
 
     def test_no_registra_pago_de_aporte_pagado_dos_veces(self):
         aporte = AporteNacional.objects.create(

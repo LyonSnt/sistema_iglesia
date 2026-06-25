@@ -18,14 +18,17 @@ Indice de documentos del proyecto Ecclesia.
 - [HTMX](htmx.md)
 - [Tailwind CSS](tailwind.md)
 - [Pendientes](pendientes.md)
+- [Analisis funcional](analisis_funcional.md)
+- [Estrategia general de reportes](reportes.md)
 - [Corte y promociones de Escuela Dominical](escuela_dominical_promociones.md)
-- [Certificados de Escuela Dominical](certificados.md)
+- [Certificados institucionales](certificados.md)
 
 ## Seguridad y Acceso
 
 - [Modelo multi-iglesia](multi_iglesia.md)
 - [Matriz de permisos y roles](matriz_permisos_roles.md)
 - [Seguridad](seguridad.md)
+- [Estrategia de auditoria](auditoria.md)
 
 ## Sesiones
 

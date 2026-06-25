@@ -82,6 +82,9 @@
               <td class="px-4 py-3">
                 <div class="flex gap-3">
                   <a class="text-sm font-medium text-slate-700 hover:text-slate-950" href="{% url 'aportes_nacionales:detail' aporte.pk %}">Ver</a>
+                  {% if puede_registrar_pagos and aporte.estado == "PENDIENTE" %}
+                    <a class="text-sm font-medium text-slate-700 hover:text-slate-950" href="{% url 'aportes_nacionales:payment' aporte.pk %}">Registrar pago</a>
+                  {% endif %}
                   {% if aporte.estado == "PAGADO" %}
                     <a class="text-sm font-medium text-slate-700 hover:text-slate-950" href="{% url 'aportes_nacionales:receipt-pdf' aporte.pk %}">Recibo</a>
                   {% endif %}

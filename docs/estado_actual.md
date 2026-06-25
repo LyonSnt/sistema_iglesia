@@ -81,6 +81,10 @@ solo de esa filial.
   - detalle de asignacion;
   - creacion y edicion;
   - finalizacion de asignaciones;
+  - sincronizacion de acceso para cargos funcionales locales asignados a
+    usuarios: Pastor, Encargado, Secretario y Tesorero;
+  - recalculo del rol del usuario al finalizar una asignacion funcional,
+    conservando otro cargo vigente o bajando a solo lectura;
   - documentos adjuntos protegidos por permiso y alcance por iglesia.
 - Modulo Ministerios iniciado:
   - listado en `/ministerios/`;
@@ -107,12 +111,18 @@ solo de esa filial.
   - numeracion transaccional unica;
   - PDF A4 horizontal con datos de alumno, nivel, periodo y firmantes;
   - firmas historicas de Pastor y Director de Escuela Dominical;
-  - anulacion sin borrado ni reutilizacion del numero.
+  - anulacion sin borrado ni reutilizacion del numero;
+  - hoja funcional documentada para certificados institucionales futuros:
+    membresia, bautismo, traslado, cargo/directiva y constancia pastoral.
 - Modulo Traslados iniciado:
   - listado en `/traslados/`;
   - solicitud de traslado entre iglesias filiales;
   - aceptacion, rechazo y anulacion segun origen/destino;
   - movimiento del miembro a la iglesia destino al aceptar;
+  - cierre automatico de relaciones locales activas en origen al aceptar:
+    vinculos familiares, jefatura familiar, cargos, participaciones
+    ministeriales, matriculas de Escuela Dominical y responsables de
+    ministerio;
   - documentos adjuntos protegidos por permiso y alcance origen/destino;
   - auditoria explicita del flujo de traslado;
   - reporte inicial de traslados en `/reportes/traslados/`.
@@ -120,9 +130,17 @@ solo de esa filial.
   - entrada principal de Reportes apunta al reporte financiero consolidado;
   - reporte nacional de traslados en `/reportes/traslados/`;
   - reporte financiero consolidado en `/reportes/finanzas/`;
-  - filtros por filial, zona, anio y mes;
+  - reporte nacional de inventario en `/reportes/inventario/`;
+  - estrategia general de reportes documentada en `docs/reportes.md`;
+  - filtros financieros por filial, zona, anio y mes;
+  - filtros de inventario por filial, zona, categoria, estado y busqueda;
   - totales de ingresos, egresos, saldo local, aporte pagado y aporte
     pendiente.
+- Estrategia de auditoria documentada en `docs/auditoria.md`:
+  - cobertura esperada por modulo;
+  - eventos criticos;
+  - datos minimos;
+  - prioridades de implementacion.
 - Modulo Finanzas locales iniciado:
   - listado en `/finanzas/`;
   - conceptos financieros por iglesia y tipo ingreso/egreso;
@@ -133,14 +151,17 @@ solo de esa filial.
   - anulacion sin borrado fisico;
   - cierres mensuales en `/finanzas/cierres/`;
   - totales congelados por iglesia, anio y mes;
-  - bloqueo de nuevos movimientos y anulaciones dentro de meses cerrados.
+  - bloqueo de nuevos movimientos y anulaciones dentro de meses cerrados;
+  - anulacion controlada de cierres sin aporte nacional generado para corregir
+    movimientos y regenerar el cierre con totales recalculados.
 - Modulo Aportes nacionales iniciado:
   - listado en `/aportes-nacionales/`;
   - generacion de aporte desde cierres mensuales cerrados;
   - porcentaje inicial desde `APORTE_NACIONAL_PORCENTAJE`;
   - monto base congelado desde ingresos del cierre;
   - consulta por filial con alcance por iglesia;
-  - registro de pago por `SUPERADMIN`;
+  - generacion de aportes reservada a `SUPERADMIN`;
+  - registro de pago por `SUPERADMIN` o `ADMIN_NACIONAL`;
   - numeracion transaccional de recibos;
   - resumen de pendiente y pagado;
   - cuenta corriente detallada en `/aportes-nacionales/cuenta-corriente/`;
@@ -155,6 +176,8 @@ solo de esa filial.
     y baja;
   - documentos adjuntos protegidos por permiso y alcance por iglesia;
   - baja sin borrado fisico;
+  - reporte nacional consolidado con filtros por filial, zona, categoria,
+    estado y busqueda;
   - alcance por iglesia y permisos de gestion segun matriz funcional.
 - Modulo Documentos iniciado:
   - modelo reutilizable `DocumentoAdjunto`;
@@ -377,7 +400,8 @@ Se creo un grupo Django por cada rol inicial:
 - Tests de `apps.api` cubren consulta, filtros, permisos y alcance por iglesia
   para Ministerios y participaciones ministeriales.
 - Tests de `apps.cargos` cubren listado, detalle, creacion, validaciones,
-  finalizacion, documentos adjuntos, permisos y aislamiento por iglesia.
+  finalizacion, sincronizacion de roles por asignacion funcional, documentos
+  adjuntos, permisos y aislamiento por iglesia.
 - API de Cargos/directivas expone cargos y asignaciones en modo consulta,
   protegida por permisos y alcance por iglesia.
 - Tests de `apps.ministerios` cubren listado, detalle, creacion, validaciones,
@@ -389,20 +413,24 @@ Se creo un grupo Django por cada rol inicial:
   emision idempotente, PDF, permisos, aislamiento por iglesia y anulacion.
 - Tests de `apps.traslados` cubren solicitud, permisos, alcance por iglesia,
   aceptacion, rechazo, anulacion, auditoria, documentos adjuntos y movimiento
-  del miembro.
+  del miembro, incluyendo cierre de relaciones locales activas en origen.
 - Tests de `apps.reportes` cubren reporte inicial de traslados.
 - Tests de `apps.reportes` cubren reporte financiero consolidado, permisos
+  nacionales, filtros y totales.
+- Tests de `apps.reportes` cubren reporte nacional de inventario, permisos
   nacionales, filtros y totales.
 - Tests de `apps.inventario` cubren creacion, permisos, consulta, aislamiento
   por iglesia, movimientos, historial, documentos adjuntos protegidos y baja
   sin borrado fisico.
 - Tests de `apps.finanzas` cubren conceptos, movimientos, permisos, gestion
   local, aislamiento por iglesia, validaciones, anulacion, cierres mensuales,
-  totales congelados, duplicados, documentos adjuntos y bloqueo por mes cerrado.
+  totales congelados, duplicados, documentos adjuntos, bloqueo por mes cerrado
+  y correccion posterior de cierres sin aporte nacional generado.
 - Tests de `apps.aportes_nacionales` cubren generacion desde cierre mensual,
   porcentaje parametrizado, permisos, no duplicar aportes, aislamiento por
-  iglesia, registro de pago, numeracion de recibos, totales pendiente/pagado y
-  seed de parametros documentales, cuenta corriente y recibo PDF.
+  iglesia, registro de pago por operacion financiera nacional, numeracion de
+  recibos, totales pendiente/pagado y seed de parametros documentales, cuenta
+  corriente y recibo PDF.
 - Tests de `apps.auditoria` cubren intervencion nacional sobre filiales y
   ausencia de auditoria nacional en la gestion propia de una filial.
 - Tests de `apps.iglesias` y `apps.usuarios` cubren la separacion visual entre
@@ -414,7 +442,9 @@ Se creo un grupo Django por cada rol inicial:
 - Migracion `certificados.0001` aplicada para certificados de Escuela Dominical.
 - Migracion `inventario.0001` aplicada para activos y movimientos de inventario.
 - Migracion `documentos.0001` aplicada para documentos adjuntos reutilizables.
-- Suite completa validada: 205 tests aprobados.
+- Migracion `finanzas.0003` creada para permitir regenerar cierres anulados y
+  conservar unicidad solo entre cierres cerrados por iglesia, anio y mes.
+- Suite completa validada: 243 tests aprobados.
 - Validacion focalizada de documentos adjuntos en Cargos, Traslados y Finanzas:
   47 tests aprobados.
 - `python manage.py check` sin issues y sin migraciones pendientes.
@@ -423,9 +453,9 @@ Se creo un grupo Django por cada rol inicial:
 
 Siguiente bloque recomendado:
 
-1. Validar el diseno PDF con la plantilla institucional e incorporar logotipo
+1. Definir criterios de soporte nacional auditado a filiales.
+2. Validar el diseno PDF con la plantilla institucional e incorporar logotipo
    o fondo oficial cuando se entregue el archivo fuente.
-2. Desarrollar reportes de Inventario.
 
 No conviene iniciar vistas de modulos grandes hasta cerrar permisos y acceso por
 iglesia.
@@ -489,5 +519,8 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml exec web python m
 - [Usuarios de prueba](usuarios_prueba.md)
 - [Matriz de permisos y roles](matriz_permisos_roles.md)
 - [Seguridad](seguridad.md)
+- [Estrategia de auditoria](auditoria.md)
 - [Pendientes](pendientes.md)
+- [Analisis funcional](analisis_funcional.md)
+- [Estrategia general de reportes](reportes.md)
 - [Tailwind CSS](tailwind.md)

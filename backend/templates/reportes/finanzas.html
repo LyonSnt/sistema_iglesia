@@ -11,8 +11,12 @@
                     Supervision nacional de cierres mensuales, saldos locales y estado de aportes nacionales.
                 </p>
             </div>
-            <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-               href="{% url 'reportes:traslados' %}">Reporte de traslados</a>
+            <div class="flex flex-wrap gap-2">
+                <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                   href="{% url 'reportes:traslados' %}">Reporte de traslados</a>
+                <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                   href="{% url 'reportes:inventario' %}">Reporte de inventario</a>
+            </div>
         </div>
 
         <div class="grid gap-3 md:grid-cols-3 xl:grid-cols-6">

@@ -123,6 +123,13 @@ class AnularMovimientoForm(forms.Form):
     )
 
 
+class AnularCierreMensualForm(forms.Form):
+    motivo_anulacion = forms.CharField(
+        label="Motivo",
+        widget=forms.Textarea(attrs={"rows": 4, "class": FIELD_CLASS}),
+    )
+
+
 class CierreMensualFinancieroForm(forms.ModelForm):
     class Meta:
         model = CierreMensualFinanciero

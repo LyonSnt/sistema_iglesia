@@ -1,4 +1,5 @@
 from django.db.models import Q, Sum
+from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
@@ -14,6 +15,7 @@ from apps.core.permisos import (
     usuario_puede,
 )
 from apps.iglesias.models import Iglesia
+from apps.usuarios.models import Usuario
 
 from .forms import AporteNacionalForm, RegistrarPagoAporteForm
 from .models import AporteNacional
@@ -55,6 +57,7 @@ class AporteNacionalListView(AporteQuerysetMixin, PermisoModuloMixin, ListView):
         context["anio"] = self.request.GET.get("anio", "").strip()
         context["estados"] = AporteNacional.Estado.choices
         context["puede_gestionar"] = usuario_puede(self.request.user, MODULO_APORTES_NACIONALES, ACCION_GESTIONAR)
+        context["puede_registrar_pagos"] = usuario_puede_registrar_pago_aporte(self.request.user)
         base = self.get_queryset()
         context["total_pendiente"] = base.filter(estado=AporteNacional.Estado.PENDIENTE).aggregate(total=Sum("monto_aporte"))["total"] or 0
         context["total_pagado"] = base.filter(estado=AporteNacional.Estado.PAGADO).aggregate(total=Sum("monto_aporte"))["total"] or 0
@@ -122,6 +125,7 @@ class AporteNacionalDetailView(AporteQuerysetMixin, PermisoModuloMixin, DetailVi
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["puede_gestionar"] = usuario_puede(self.request.user, MODULO_APORTES_NACIONALES, ACCION_GESTIONAR)
+        context["puede_registrar_pago"] = usuario_puede_registrar_pago_aporte(self.request.user)
         return context
 
 
@@ -145,7 +149,7 @@ class RegistrarPagoAporteView(AporteQuerysetMixin, PermisoModuloMixin, FormView)
     template_name = "aportes_nacionales/aporte_pago_form.html"
     form_class = RegistrarPagoAporteForm
     modulo_permiso = MODULO_APORTES_NACIONALES
-    accion_permiso = ACCION_GESTIONAR
+    accion_permiso = ACCION_VER
 
     def get_object(self):
         if not hasattr(self, "object"):
@@ -153,6 +157,8 @@ class RegistrarPagoAporteView(AporteQuerysetMixin, PermisoModuloMixin, FormView)
         return self.object
 
     def dispatch(self, request, *args, **kwargs):
+        if not usuario_puede_registrar_pago_aporte(request.user):
+            raise PermissionDenied
         aporte = self.get_object()
         if aporte.estado != AporteNacional.Estado.PENDIENTE:
             return redirect("aportes_nacionales:detail", pk=aporte.pk)
@@ -190,3 +196,11 @@ class ReciboAportePDFView(AporteQuerysetMixin, PermisoModuloMixin, View):
         response = HttpResponse(generar_pdf_recibo_aporte(aporte), content_type="application/pdf")
         response["Content-Disposition"] = f'inline; filename="{aporte.numero_recibo}.pdf"'
         return response
+
+
+def usuario_puede_registrar_pago_aporte(user):
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False):
+        return True
+    return getattr(user, "rol", None) == Usuario.Rol.ADMIN_NACIONAL

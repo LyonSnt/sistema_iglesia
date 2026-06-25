@@ -177,6 +177,7 @@ class CoreViewsTests(TestCase):
         self.assertContains(response, "Reportes")
         self.assertContains(response, reverse("reportes:finanzas"))
         self.assertContains(response, "Auditoria")
+        self.assertContains(response, "Aportes nacionales")
         self.assertNotContains(response, "Miembros y familias")
         self.assertNotContains(response, "Ministerios")
         self.assertNotContains(response, "Escuela Dominical")

@@ -7,6 +7,7 @@ from apps.aportes_nacionales.models import AporteNacional
 from apps.core.permisos import ACCION_VER, MODULO_REPORTES, usuario_puede
 from apps.finanzas.models import CierreMensualFinanciero
 from apps.iglesias.models import Iglesia
+from apps.inventario.models import ActivoInventario
 from apps.traslados.models import TrasladoMiembro
 
 
@@ -142,6 +143,82 @@ class ReporteFinanzasView(ReporteNacionalMixin, TemplateView):
             "zona": self.request.GET.get("zona", "").strip(),
             "anio": self.request.GET.get("anio", "").strip(),
             "mes": self.request.GET.get("mes", "").strip(),
+        }
+        return context
+
+
+class ReporteInventarioView(ReporteNacionalMixin, TemplateView):
+    template_name = "reportes/inventario.html"
+
+    def get_queryset(self):
+        queryset = ActivoInventario.objects.select_related(
+            "iglesia",
+            "iglesia__zona",
+            "responsable_actual",
+        )
+
+        iglesia = self.request.GET.get("iglesia", "").strip()
+        if iglesia:
+            queryset = queryset.filter(iglesia_id=iglesia)
+
+        zona = self.request.GET.get("zona", "").strip()
+        if zona:
+            queryset = queryset.filter(iglesia__zona_id=zona)
+
+        estado = self.request.GET.get("estado", "").strip()
+        if estado:
+            queryset = queryset.filter(estado=estado)
+
+        categoria = self.request.GET.get("categoria", "").strip()
+        if categoria:
+            queryset = queryset.filter(categoria=categoria)
+
+        query = self.request.GET.get("q", "").strip()
+        if query:
+            queryset = queryset.filter(
+                Q(codigo__icontains=query)
+                | Q(nombre__icontains=query)
+                | Q(categoria__icontains=query)
+                | Q(ubicacion_actual__icontains=query)
+                | Q(iglesia__codigo__icontains=query)
+                | Q(iglesia__nombre__icontains=query)
+            )
+
+        return queryset.order_by("iglesia__nombre", "categoria", "codigo")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        queryset = self.get_queryset()
+        conteos = {item["estado"]: item["total"] for item in queryset.values("estado").annotate(total=Count("id"))}
+        totales = queryset.aggregate(
+            total=Count("id"),
+            activos=Count("id", filter=Q(activo=True)),
+            valor=Sum("valor_referencial"),
+        )
+
+        context["activos"] = queryset[:200]
+        context["total_activos"] = totales["total"] or 0
+        context["total_vigentes"] = totales["activos"] or 0
+        context["valor_total"] = totales["valor"] or 0
+        context["conteos_resumen"] = [
+            {"estado": estado, "label": label, "total": conteos.get(estado, 0)}
+            for estado, label in ActivoInventario.Estado.choices
+        ]
+        context["estados"] = ActivoInventario.Estado.choices
+        context["iglesias"] = Iglesia.objects.filter(tipo=Iglesia.Tipo.FILIAL, activo=True).select_related("zona").order_by("nombre")
+        context["zonas"] = _zonas_filiales()
+        context["categorias"] = (
+            ActivoInventario.objects.exclude(categoria="")
+            .values_list("categoria", flat=True)
+            .distinct()
+            .order_by("categoria")
+        )
+        context["filtros"] = {
+            "q": self.request.GET.get("q", "").strip(),
+            "iglesia": self.request.GET.get("iglesia", "").strip(),
+            "zona": self.request.GET.get("zona", "").strip(),
+            "estado": self.request.GET.get("estado", "").strip(),
+            "categoria": self.request.GET.get("categoria", "").strip(),
         }
         return context
 

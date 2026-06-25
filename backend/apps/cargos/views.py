@@ -12,6 +12,7 @@ from apps.documentos.models import DocumentoAdjunto
 
 from .forms import AsignacionCargoForm, FinalizarAsignacionCargoForm
 from .models import AsignacionCargo
+from .servicios import finalizar_acceso_por_asignacion, sincronizar_acceso_por_asignacion
 
 
 class AsignacionCargoQuerysetMixin:
@@ -87,6 +88,11 @@ class AsignacionCargoFormMixin(AsignacionCargoQuerysetMixin, PermisoModuloMixin)
         kwargs["user"] = self.request.user
         return kwargs
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        sincronizar_acceso_por_asignacion(self.object)
+        return response
+
 
 class AsignacionCargoCreateView(AsignacionCargoFormMixin, CreateView):
     pass
@@ -118,7 +124,8 @@ class FinalizarAsignacionCargoView(AsignacionCargoQuerysetMixin, PermisoModuloMi
         asignacion.estado = AsignacionCargo.Estado.FINALIZADO
         if form.cleaned_data["observacion"]:
             asignacion.observacion = form.cleaned_data["observacion"]
-        asignacion.save(update_fields=["fecha_fin", "estado", "observacion"])
+        asignacion.save(update_fields=["fecha_fin", "estado", "observacion", "actualizado_en"])
+        finalizar_acceso_por_asignacion(asignacion)
         return redirect("cargos:detail", pk=asignacion.pk)
 
     def get_success_url(self):

@@ -30,19 +30,22 @@
 - Cargos/directivas: [x] listado; [x] detalle; [x] creacion y edicion;
   [x] finalizacion; [x] API de consulta; [x] documentos adjuntos.
 - Ministerios: [x] listado; [x] detalle; [x] creacion y edicion;
-  [x] participaciones; [x] finalizacion de participaciones; pendiente API.
+  [x] participaciones; [x] finalizacion de participaciones; [x] API de
+  consulta.
 - Traslados: [x] flujo origen/destino; [x] auditoria; [x] reporte inicial;
   [x] documentos adjuntos.
 - Finanzas: [x] conceptos; [x] ingresos; [x] egresos; [x] anulacion;
-  [x] cierre mensual; [x] reporte consolidado; [x] documentos adjuntos.
+  [x] cierre mensual; [x] correccion posterior de cierres sin aporte nacional;
+  [x] reporte consolidado; [x] documentos adjuntos.
 - Aportes nacionales: [x] generacion desde cierre mensual; [x] calculo por
   porcentaje; [x] consulta por filial; [x] registro de pago; [x] numeracion de
   recibos; [x] recibos PDF; [x] cuenta corriente detallada.
 - Certificados: [x] numeracion, [x] emision individual y por lote,
-  [x] PDF de Escuela Dominical, [x] anulacion; pendiente validar el fondo y
-  logotipo institucional, y desarrollar otros tipos documentales.
+  [x] PDF de Escuela Dominical, [x] anulacion, [x] hoja funcional de
+  certificados institucionales; pendiente validar el fondo y logotipo
+  institucional, e implementar otros tipos documentales.
 - Inventario: [x] activos; [x] historial de ubicacion, responsable, reparacion
-  y baja; [x] documentos adjuntos; pendiente reportes.
+  y baja; [x] documentos adjuntos; [x] reportes.
 - Documentos adjuntos: [x] base reutilizable; [x] integracion en inventario,
   finanzas, traslados y cargos.
 - Escuela Dominical: [x] niveles, [x] clases y matriculas, [x] sesiones y
@@ -53,4 +56,5 @@
 - [x] Completar matriz funcional inicial de permisos.
 - Documentar convenciones de formularios HTMX.
 - [x] Reporte financiero consolidado inicial.
-- Documentar estrategia general de reportes.
+- [x] Documentar estrategia general de reportes.
+- [x] Documentar estrategia de auditoria por modulo.

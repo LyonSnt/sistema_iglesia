@@ -125,6 +125,7 @@ MATRIZ_PERMISOS_MODULOS = {
         ),
         ACCION_VER: frozenset(
             {
+                Usuario.Rol.ADMIN_NACIONAL,
                 Usuario.Rol.TESORERO_FILIAL,
                 Usuario.Rol.PASTOR_FILIAL,
             }

@@ -5,6 +5,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
+from apps.aportes_nacionales.models import AporteNacional
 from apps.documentos.models import DocumentoAdjunto
 from apps.finanzas.models import CierreMensualFinanciero, ConceptoFinanciero, MovimientoFinanciero, TipoMovimiento
 from apps.iglesias.models import Iglesia
@@ -333,6 +334,86 @@ class FinanzasLocalesTests(TestCase):
         self.assertRedirects(response, reverse("finanzas:detail", args=[movimiento.pk]))
         movimiento.refresh_from_db()
         self.assertEqual(movimiento.estado, MovimientoFinanciero.Estado.REGISTRADO)
+
+    def test_anula_cierre_sin_aporte_y_permite_corregir_y_regenerar(self):
+        self.crear_movimiento(monto=Decimal("100.00"), fecha=date(2026, 6, 1))
+        usuario = self.crear_usuario("tesorero_correccion", Usuario.Rol.TESORERO_FILIAL, self.filial)
+        cierre = CierreMensualFinanciero.objects.create(
+            iglesia=self.filial,
+            anio=2026,
+            mes=6,
+            total_ingresos=Decimal("100.00"),
+            total_egresos=Decimal("0.00"),
+            saldo=Decimal("100.00"),
+            cerrado_por=usuario,
+        )
+        self.client.force_login(usuario)
+
+        response_anular = self.client.post(
+            reverse("finanzas:cierre-annul", args=[cierre.pk]),
+            {"motivo_anulacion": "Falto registrar una ofrenda"},
+        )
+
+        self.assertRedirects(response_anular, reverse("finanzas:cierre-list"))
+        cierre.refresh_from_db()
+        self.assertEqual(cierre.estado, CierreMensualFinanciero.Estado.ANULADO)
+        self.assertIn("Falto registrar una ofrenda", cierre.observacion)
+
+        response_movimiento = self.client.post(
+            reverse("finanzas:create"),
+            self.datos_movimiento(
+                fecha="2026-06-15",
+                monto="25.00",
+                descripcion="Ofrenda pendiente",
+                numero_comprobante="REC-002",
+            ),
+        )
+
+        self.assertRedirects(response_movimiento, reverse("finanzas:list"))
+        response_regenerar = self.client.post(
+            reverse("finanzas:cierre-create"),
+            {"iglesia": self.filial.pk, "anio": "2026", "mes": "6", "observacion": "Cierre corregido"},
+        )
+
+        self.assertRedirects(response_regenerar, reverse("finanzas:cierre-list"))
+        cierre.refresh_from_db()
+        self.assertEqual(CierreMensualFinanciero.objects.filter(iglesia=self.filial, anio=2026, mes=6).count(), 1)
+        self.assertEqual(cierre.estado, CierreMensualFinanciero.Estado.CERRADO)
+        self.assertEqual(cierre.total_ingresos, Decimal("125.00"))
+        self.assertEqual(cierre.saldo, Decimal("125.00"))
+        self.assertEqual(cierre.observacion, "Cierre corregido")
+
+    def test_no_anula_cierre_con_aporte_nacional_generado(self):
+        usuario = self.crear_usuario("tesorero_con_aporte", Usuario.Rol.TESORERO_FILIAL, self.filial)
+        cierre = CierreMensualFinanciero.objects.create(
+            iglesia=self.filial,
+            anio=2026,
+            mes=6,
+            total_ingresos=Decimal("100.00"),
+            total_egresos=Decimal("0.00"),
+            saldo=Decimal("100.00"),
+            cerrado_por=usuario,
+        )
+        AporteNacional.objects.create(
+            iglesia=self.filial,
+            cierre=cierre,
+            anio=2026,
+            mes=6,
+            porcentaje=Decimal("10.00"),
+            monto_base=Decimal("100.00"),
+            monto_aporte=Decimal("10.00"),
+            generado_por=usuario,
+        )
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("finanzas:cierre-annul", args=[cierre.pk]),
+            {"motivo_anulacion": "No debe anularse"},
+        )
+
+        self.assertRedirects(response, reverse("finanzas:cierre-list"))
+        cierre.refresh_from_db()
+        self.assertEqual(cierre.estado, CierreMensualFinanciero.Estado.CERRADO)
 
     def test_adjunta_documento_a_movimiento_financiero(self):
         movimiento = self.crear_movimiento()

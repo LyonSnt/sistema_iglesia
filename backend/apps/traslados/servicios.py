@@ -2,10 +2,16 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.auditoria.models import RegistroAuditoria
-from apps.familias.models import MiembroFamilia
+from apps.cargos.models import AsignacionCargo
+from apps.escuela_dominical.models import MatriculaEscuelaDominical
+from apps.familias.models import Familia, MiembroFamilia
 from apps.miembros.models import Miembro
+from apps.ministerios.models import Ministerio, ParticipacionMinisterio
 
 from .models import TrasladoMiembro
+
+
+MOTIVO_CIERRE_TRASLADO = "Cierre automatico por traslado aceptado."
 
 
 def _registrar_auditoria(traslado, usuario, accion, motivo, valor_anterior=None, valor_nuevo=None, iglesia=None):
@@ -33,12 +39,9 @@ def aceptar_traslado(traslado, usuario, observacion=""):
 
     miembro = Miembro.objects.select_for_update().get(pk=traslado.miembro_id)
     iglesia_origen_id = miembro.iglesia_id
+    fecha_cierre = timezone.localdate()
 
-    MiembroFamilia.objects.filter(
-        miembro=miembro,
-        activo=True,
-        familia__iglesia_id=iglesia_origen_id,
-    ).update(activo=False)
+    resumen_cierre = _cerrar_relaciones_origen(miembro, iglesia_origen_id, fecha_cierre)
 
     miembro.iglesia = traslado.iglesia_destino
     miembro.estado = Miembro.Estado.ACTIVO
@@ -66,10 +69,80 @@ def aceptar_traslado(traslado, usuario, observacion=""):
         usuario=usuario,
         accion="ACEPTAR",
         valor_anterior={"miembro_id": miembro.pk, "iglesia_id": iglesia_origen_id},
-        valor_nuevo={"miembro_id": miembro.pk, "iglesia_id": traslado.iglesia_destino_id},
+        valor_nuevo={
+            "miembro_id": miembro.pk,
+            "iglesia_id": traslado.iglesia_destino_id,
+            "cierres_origen": resumen_cierre,
+        },
         motivo="Traslado de miembro aceptado por iglesia destino.",
     )
     return traslado
+
+
+def _cerrar_relaciones_origen(miembro, iglesia_origen_id, fecha_cierre):
+    ahora = timezone.now()
+    vinculos_familiares = MiembroFamilia.objects.filter(
+        miembro=miembro,
+        activo=True,
+        familia__iglesia_id=iglesia_origen_id,
+    ).update(activo=False, actualizado_en=ahora)
+
+    familias_jefatura = Familia.objects.filter(
+        iglesia_id=iglesia_origen_id,
+        jefe_hogar=miembro,
+        activo=True,
+    ).update(activo=False, actualizado_en=ahora)
+
+    asignaciones_cargos = AsignacionCargo.objects.filter(
+        iglesia_id=iglesia_origen_id,
+        miembro=miembro,
+        estado=AsignacionCargo.Estado.VIGENTE,
+    ).update(
+        estado=AsignacionCargo.Estado.FINALIZADO,
+        fecha_fin=fecha_cierre,
+        observacion=MOTIVO_CIERRE_TRASLADO,
+        actualizado_en=ahora,
+    )
+
+    participaciones = ParticipacionMinisterio.objects.filter(
+        ministerio__iglesia_id=iglesia_origen_id,
+        miembro=miembro,
+        estado=ParticipacionMinisterio.Estado.ACTIVO,
+        activo=True,
+    ).update(
+        estado=ParticipacionMinisterio.Estado.FINALIZADO,
+        fecha_fin=fecha_cierre,
+        motivo_salida=MOTIVO_CIERRE_TRASLADO,
+        activo=False,
+        actualizado_en=ahora,
+    )
+
+    matriculas = MatriculaEscuelaDominical.objects.filter(
+        clase__iglesia_id=iglesia_origen_id,
+        alumno=miembro,
+        estado=MatriculaEscuelaDominical.Estado.ACTIVA,
+        activo=True,
+    ).update(
+        estado=MatriculaEscuelaDominical.Estado.RETIRADA,
+        fecha_salida=fecha_cierre,
+        observacion=MOTIVO_CIERRE_TRASLADO,
+        activo=False,
+        actualizado_en=ahora,
+    )
+
+    ministerios_responsable = Ministerio.objects.filter(
+        iglesia_id=iglesia_origen_id,
+        responsable=miembro,
+    ).update(responsable=None, actualizado_en=ahora)
+
+    return {
+        "vinculos_familiares": vinculos_familiares,
+        "familias_jefatura": familias_jefatura,
+        "asignaciones_cargos": asignaciones_cargos,
+        "participaciones_ministerios": participaciones,
+        "matriculas_escuela_dominical": matriculas,
+        "ministerios_responsable": ministerios_responsable,
+    }
 
 
 @transaction.atomic

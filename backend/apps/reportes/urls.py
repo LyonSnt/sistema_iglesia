@@ -9,4 +9,5 @@ urlpatterns = [
     path("", RedirectView.as_view(pattern_name="reportes:finanzas", permanent=False), name="index"),
     path("traslados/", views.ReporteTrasladosView.as_view(), name="traslados"),
     path("finanzas/", views.ReporteFinanzasView.as_view(), name="finanzas"),
+    path("inventario/", views.ReporteInventarioView.as_view(), name="inventario"),
 ]

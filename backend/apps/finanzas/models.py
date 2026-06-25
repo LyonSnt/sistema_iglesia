@@ -79,7 +79,13 @@ class CierreMensualFinanciero(TimeStampedModel, IglesiaScopedModel):
 
     class Meta:
         ordering = ("-anio", "-mes", "iglesia__nombre")
-        unique_together = ("iglesia", "anio", "mes")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("iglesia", "anio", "mes"),
+                condition=models.Q(estado="CERRADO"),
+                name="finanzas_cierre_cerrado_unico_por_mes",
+            )
+        ]
         verbose_name = "cierre mensual financiero"
         verbose_name_plural = "cierres mensuales financieros"
 

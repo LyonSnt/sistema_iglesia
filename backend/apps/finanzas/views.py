@@ -10,7 +10,14 @@ from apps.core.permisos import ACCION_GESTIONAR, ACCION_VER, MODULO_FINANZAS, Pe
 from apps.documentos.forms import AnularDocumentoAdjuntoForm, DocumentoAdjuntoForm
 from apps.documentos.models import DocumentoAdjunto
 
-from .forms import AnularMovimientoForm, CierreMensualFinancieroForm, ConceptoFinancieroForm, MovimientoFinancieroForm, mes_esta_cerrado
+from .forms import (
+    AnularCierreMensualForm,
+    AnularMovimientoForm,
+    CierreMensualFinancieroForm,
+    ConceptoFinancieroForm,
+    MovimientoFinancieroForm,
+    mes_esta_cerrado,
+)
 from .models import CierreMensualFinanciero, ConceptoFinanciero, MovimientoFinanciero, TipoMovimiento
 
 
@@ -208,6 +215,12 @@ class CierreMensualCreateView(PermisoModuloMixin, CreateView):
     def form_valid(self, form):
         cierre = form.save(commit=False)
         cierre.cerrado_por = self.request.user
+        cierre_anulado = CierreMensualFinanciero.objects.filter(
+            iglesia=cierre.iglesia,
+            anio=cierre.anio,
+            mes=cierre.mes,
+            estado=CierreMensualFinanciero.Estado.ANULADO,
+        ).first()
         movimientos = MovimientoFinanciero.objects.filter(
             iglesia=cierre.iglesia,
             fecha__year=cierre.anio,
@@ -219,9 +232,65 @@ class CierreMensualCreateView(PermisoModuloMixin, CreateView):
         cierre.total_ingresos = total_ingresos
         cierre.total_egresos = total_egresos
         cierre.saldo = total_ingresos - total_egresos
-        cierre.save()
+        if cierre_anulado is not None:
+            cierre_anulado.total_ingresos = cierre.total_ingresos
+            cierre_anulado.total_egresos = cierre.total_egresos
+            cierre_anulado.saldo = cierre.saldo
+            cierre_anulado.estado = CierreMensualFinanciero.Estado.CERRADO
+            cierre_anulado.cerrado_por = self.request.user
+            if cierre.observacion:
+                cierre_anulado.observacion = cierre.observacion
+            cierre_anulado.save(
+                update_fields=[
+                    "total_ingresos",
+                    "total_egresos",
+                    "saldo",
+                    "estado",
+                    "cerrado_por",
+                    "observacion",
+                    "actualizado_en",
+                ]
+            )
+            cierre = cierre_anulado
+        else:
+            cierre.save()
         self.object = cierre
         return redirect(self.get_success_url())
+
+
+class AnularCierreMensualView(CierreQuerysetMixin, PermisoModuloMixin, FormView):
+    template_name = "finanzas/cierre_anular.html"
+    form_class = AnularCierreMensualForm
+    modulo_permiso = MODULO_FINANZAS
+    accion_permiso = ACCION_GESTIONAR
+
+    def get_object(self):
+        if not hasattr(self, "object"):
+            self.object = get_object_or_404(
+                self.get_queryset(),
+                pk=self.kwargs["pk"],
+                estado=CierreMensualFinanciero.Estado.CERRADO,
+            )
+        return self.object
+
+    def dispatch(self, request, *args, **kwargs):
+        cierre = self.get_object()
+        if hasattr(cierre, "aporte_nacional"):
+            return redirect("finanzas:cierre-list")
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        cierre = self.get_object()
+        motivo = form.cleaned_data["motivo_anulacion"]
+        cierre.estado = CierreMensualFinanciero.Estado.ANULADO
+        cierre.observacion = _agregar_observacion_anulacion(cierre.observacion, motivo)
+        cierre.save(update_fields=["estado", "observacion", "actualizado_en"])
+        return redirect("finanzas:cierre-list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["cierre"] = self.get_object()
+        return context
 
 
 class AdjuntarDocumentoFinanzasView(FinanzasQuerysetMixin, PermisoModuloMixin, FormView):
@@ -319,3 +388,10 @@ def timezone_now():
     from django.utils import timezone
 
     return timezone.now()
+
+
+def _agregar_observacion_anulacion(observacion_actual, motivo):
+    texto = f"Anulado para correccion posterior: {motivo}"
+    if observacion_actual:
+        return f"{observacion_actual}\n{texto}"
+    return texto

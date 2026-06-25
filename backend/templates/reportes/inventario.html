@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Reporte de inventario | Ecclesia{% endblock %}
+{% block content %}
+    <section class="space-y-6">
+        <div class="flex flex-col gap-4 border-b border-slate-200 pb-6 md:flex-row md:items-end md:justify-between">
+            <div>
+                <a class="text-sm font-medium text-slate-500 hover:text-slate-950"
+                   href="{% url 'core:dashboard' %}">Panel inicial</a>
+                <h1 class="mt-2 text-3xl font-semibold text-slate-950">Reporte de inventario</h1>
+                <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                    Supervision nacional de activos por filial, zona, categoria y estado.
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                   href="{% url 'reportes:finanzas' %}">Reporte financiero</a>
+                <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                   href="{% url 'reportes:traslados' %}">Reporte de traslados</a>
+            </div>
+        </div>
+
+        <div class="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+            <div class="rounded border border-slate-200 bg-white p-4">
+                <div class="text-xs font-medium uppercase text-slate-500">Total</div>
+                <div class="mt-1 text-2xl font-semibold text-slate-950">{{ total_activos }}</div>
+            </div>
+            <div class="rounded border border-slate-200 bg-white p-4">
+                <div class="text-xs font-medium uppercase text-slate-500">Vigentes</div>
+                <div class="mt-1 text-2xl font-semibold text-slate-950">{{ total_vigentes }}</div>
+            </div>
+            <div class="rounded border border-slate-200 bg-white p-4">
+                <div class="text-xs font-medium uppercase text-slate-500">Valor referencial</div>
+                <div class="mt-1 text-2xl font-semibold text-slate-950">$ {{ valor_total|floatformat:2 }}</div>
+            </div>
+            {% for item in conteos_resumen %}
+                <div class="rounded border border-slate-200 bg-white p-4">
+                    <div class="text-xs font-medium uppercase text-slate-500">{{ item.label }}</div>
+                    <div class="mt-1 text-2xl font-semibold text-slate-950">{{ item.total }}</div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <form class="grid gap-3 rounded border border-slate-200 bg-white p-4 md:grid-cols-2 xl:grid-cols-6"
+              method="get">
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">Buscar</span>
+                <input class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                       type="search"
+                       name="q"
+                       value="{{ filtros.q }}"
+                       placeholder="Activo, codigo o filial">
+            </label>
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">Filial</span>
+                <select class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                        name="iglesia">
+                    <option value="">Todas</option>
+                    {% for iglesia in iglesias %}
+                        <option value="{{ iglesia.pk }}"
+                                {% if filtros.iglesia == iglesia.pk|stringformat:"s" %}selected{% endif %}>{{ iglesia.codigo }} - {{ iglesia.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">Zona</span>
+                <select class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                        name="zona">
+                    <option value="">Todas</option>
+                    {% for zona in zonas %}
+                        <option value="{{ zona.zona_id }}"
+                                {% if filtros.zona == zona.zona_id|stringformat:"s" %}selected{% endif %}>{{ zona.zona__nombre }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">Categoria</span>
+                <select class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                        name="categoria">
+                    <option value="">Todas</option>
+                    {% for categoria in categorias %}
+                        <option value="{{ categoria }}"
+                                {% if filtros.categoria == categoria %}selected{% endif %}>{{ categoria }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">Estado</span>
+                <select class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                        name="estado">
+                    <option value="">Todos</option>
+                    {% for value, label in estados %}
+                        <option value="{{ value }}"
+                                {% if filtros.estado == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <div class="flex items-end gap-2">
+                <button class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                        type="submit">Filtrar</button>
+                <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                   href="{% url 'reportes:inventario' %}">Limpiar</a>
+            </div>
+        </form>
+
+        <div class="overflow-hidden rounded border border-slate-200 bg-white">
+            <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <thead class="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    <tr>
+                        <th class="px-4 py-3">Codigo</th>
+                        <th class="px-4 py-3">Activo</th>
+                        <th class="px-4 py-3">Filial</th>
+                        <th class="px-4 py-3">Zona</th>
+                        <th class="px-4 py-3">Categoria</th>
+                        <th class="px-4 py-3">Ubicacion</th>
+                        <th class="px-4 py-3">Responsable</th>
+                        <th class="px-4 py-3">Estado</th>
+                        <th class="px-4 py-3">Valor</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for activo in activos %}
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3 font-medium text-slate-950">{{ activo.codigo }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ activo.nombre }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ activo.iglesia.codigo }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ activo.iglesia.zona|default:"-" }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ activo.categoria }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ activo.ubicacion_actual }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ activo.responsable_actual|default:"-" }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ activo.get_estado_display }}</td>
+                            <td class="px-4 py-3 text-slate-700">
+                                {% if activo.valor_referencial is not None %}
+                                    $ {{ activo.valor_referencial|floatformat:2 }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td class="px-4 py-8 text-center text-sm text-slate-500" colspan="9">No hay activos para los filtros actuales.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

@@ -15,7 +15,7 @@
         {% if aporte.estado == "PAGADO" %}
           <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'aportes_nacionales:receipt-pdf' aporte.pk %}">Ver recibo</a>
         {% endif %}
-        {% if puede_gestionar and aporte.estado == "PENDIENTE" %}
+        {% if puede_registrar_pago and aporte.estado == "PENDIENTE" %}
           <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800" href="{% url 'aportes_nacionales:payment' aporte.pk %}">Registrar pago</a>
         {% endif %}
       </div>

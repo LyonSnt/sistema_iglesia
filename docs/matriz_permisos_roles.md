@@ -58,6 +58,10 @@ Ejemplos de cargos o asignaciones que no son roles base:
   `Ministerio.lider`.
 - Ser maestro no requiere un rol `MAESTRO`; se concede por
   `ClaseEscuelaDominical.maestro`.
+- Los cargos funcionales locales `Pastor`, `Encargado`, `Secretario` y
+  `Tesorero`, cuando se asignan a un usuario, sincronizan su rol principal de
+  acceso. Al finalizar la asignacion, el rol se recalcula segun otros cargos
+  funcionales vigentes o vuelve a `SOLO_LECTURA`.
 - La auditoria nacional no requiere un rol `AUDITOR_NACIONAL`; se concede por
   permiso de auditoria a `ADMIN_NACIONAL` o por una futura asignacion/cargo si
   se necesita separar esa funcion.
@@ -88,7 +92,7 @@ iglesia.
 | Ministerios | `SUPERADMIN`, `PASTOR_FILIAL`, `ENCARGADO_FILIAL` | `SOLO_LECTURA`; lider asignado opera su ministerio | Filial; asignado solo su ministerio |
 | Escuela Dominical | `SUPERADMIN`, `PASTOR_FILIAL`, `ENCARGADO_FILIAL` | `SOLO_LECTURA`; maestro asignado opera su clase | Filial; asignado solo su clase |
 | Finanzas locales | `SUPERADMIN`, `PASTOR_FILIAL`, `ENCARGADO_FILIAL`, `TESORERO_FILIAL` | `SOLO_LECTURA` | Filial |
-| Aportes nacionales | `SUPERADMIN` | `TESORERO_FILIAL`, `PASTOR_FILIAL` | Operacion filial; consolidado en reportes |
+| Aportes nacionales | `SUPERADMIN` genera aportes; `SUPERADMIN`, `ADMIN_NACIONAL` registran pagos | `TESORERO_FILIAL`, `PASTOR_FILIAL` | Operacion filial; consolidado y pagos en gestion nacional |
 | Certificados y documentos | `SUPERADMIN`, `PASTOR_FILIAL`, `ENCARGADO_FILIAL`, `SECRETARIO_FILIAL` | `SOLO_LECTURA` | Filial |
 | Traslados | `SUPERADMIN`, `PASTOR_FILIAL`, `ENCARGADO_FILIAL`, `SECRETARIO_FILIAL` | - | Entre iglesias con auditoria |
 | Inventario | `SUPERADMIN`, `PASTOR_FILIAL`, `ENCARGADO_FILIAL`, `TESORERO_FILIAL` | `SOLO_LECTURA` | Filial |

@@ -1,5 +1,6 @@
 from datetime import date
 
+from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
@@ -120,6 +121,25 @@ class AsignacionCargoViewsTests(TestCase):
         self.assertEqual(asignacion.iglesia, self.filial)
         self.assertEqual(asignacion.miembro, self.miembro)
 
+    def test_crear_asignacion_funcional_a_usuario_sincroniza_rol_y_grupo(self):
+        usuario_asignado = self.crear_usuario("pastor_asignado", Usuario.Rol.SOLO_LECTURA, self.filial)
+        usuario = self.crear_usuario("secretario_sync", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("cargos:create"),
+            self.datos_asignacion(
+                miembro="",
+                usuario=usuario_asignado.pk,
+                fecha_inicio="2026-03-03",
+            ),
+        )
+
+        self.assertRedirects(response, reverse("cargos:list"))
+        usuario_asignado.refresh_from_db()
+        self.assertEqual(usuario_asignado.rol, Usuario.Rol.PASTOR_FILIAL)
+        self.assertTrue(usuario_asignado.groups.filter(name=Usuario.Rol.PASTOR_FILIAL).exists())
+
     def test_usuario_filial_no_puede_forzar_otra_iglesia(self):
         usuario = self.crear_usuario("secretario", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
         self.client.force_login(usuario)
@@ -206,6 +226,57 @@ class AsignacionCargoViewsTests(TestCase):
         self.assertEqual(self.asignacion.estado, AsignacionCargo.Estado.FINALIZADO)
         self.assertEqual(self.asignacion.fecha_fin, date(2026, 6, 1))
         self.assertEqual(self.asignacion.observacion, "Cierre de periodo")
+
+    def test_finalizar_asignacion_funcional_revoca_rol_si_no_tiene_otro_cargo(self):
+        usuario_asignado = self.crear_usuario("pastor_finaliza", Usuario.Rol.PASTOR_FILIAL, self.filial)
+        Group.objects.get_or_create(name=Usuario.Rol.PASTOR_FILIAL)
+        usuario_asignado.groups.set([Group.objects.get(name=Usuario.Rol.PASTOR_FILIAL)])
+        asignacion = AsignacionCargo.objects.create(
+            iglesia=self.filial,
+            cargo=self.cargo_filial,
+            usuario=usuario_asignado,
+            fecha_inicio=date(2026, 1, 1),
+        )
+        usuario = self.crear_usuario("secretario_finaliza", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("cargos:finalize", args=[asignacion.pk]),
+            {"fecha_fin": "2026-06-01", "observacion": "Cambio de autoridad"},
+        )
+
+        self.assertRedirects(response, reverse("cargos:detail", args=[asignacion.pk]))
+        usuario_asignado.refresh_from_db()
+        self.assertEqual(usuario_asignado.rol, Usuario.Rol.SOLO_LECTURA)
+        self.assertTrue(usuario_asignado.groups.filter(name=Usuario.Rol.SOLO_LECTURA).exists())
+
+    def test_finalizar_un_cargo_funcional_conserva_otro_rol_vigente(self):
+        cargo_encargado = Cargo.objects.create(nombre="Encargado", es_nacional=False)
+        usuario_asignado = self.crear_usuario("autoridad_doble", Usuario.Rol.PASTOR_FILIAL, self.filial)
+        asignacion_pastor = AsignacionCargo.objects.create(
+            iglesia=self.filial,
+            cargo=self.cargo_filial,
+            usuario=usuario_asignado,
+            fecha_inicio=date(2026, 1, 1),
+        )
+        AsignacionCargo.objects.create(
+            iglesia=self.filial,
+            cargo=cargo_encargado,
+            usuario=usuario_asignado,
+            fecha_inicio=date(2026, 1, 1),
+        )
+        usuario = self.crear_usuario("secretario_doble", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("cargos:finalize", args=[asignacion_pastor.pk]),
+            {"fecha_fin": "2026-06-01", "observacion": "Queda como encargado"},
+        )
+
+        self.assertRedirects(response, reverse("cargos:detail", args=[asignacion_pastor.pk]))
+        usuario_asignado.refresh_from_db()
+        self.assertEqual(usuario_asignado.rol, Usuario.Rol.ENCARGADO_FILIAL)
+        self.assertTrue(usuario_asignado.groups.filter(name=Usuario.Rol.ENCARGADO_FILIAL).exists())
 
     def test_filial_no_puede_finalizar_asignacion_de_otra_iglesia(self):
         usuario = self.crear_usuario("secretario", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
