@@ -76,7 +76,56 @@ class DocumentoAdjunto(TimeStampedModel, IglesiaScopedModel):
         objeto = self.content_object
         if objeto is not None and hasattr(objeto, "iglesia_id") and objeto.iglesia_id != self.iglesia_id:
             errors["iglesia"] = "El documento debe pertenecer a la misma iglesia del registro asociado."
+        tipos_permitidos = tipos_documento_permitidos(objeto)
+        if tipos_permitidos and self.tipo not in tipos_permitidos:
+            errors["tipo"] = "Tipo de documento no permitido para este modulo."
         if self.estado == self.Estado.ANULADO and not self.motivo_anulacion:
             errors["motivo_anulacion"] = "Debe indicar el motivo de anulacion."
         if errors:
             raise ValidationError(errors)
+
+
+TIPOS_DOCUMENTO_POR_MODELO = {
+    ("cargos", "asignacioncargo"): (
+        DocumentoAdjunto.Tipo.ACTA,
+        DocumentoAdjunto.Tipo.OTRO,
+    ),
+    ("traslados", "trasladomiembro"): (
+        DocumentoAdjunto.Tipo.ACTA,
+        DocumentoAdjunto.Tipo.OTRO,
+    ),
+    ("finanzas", "movimientofinanciero"): (
+        DocumentoAdjunto.Tipo.COMPROBANTE,
+        DocumentoAdjunto.Tipo.FACTURA,
+        DocumentoAdjunto.Tipo.OTRO,
+    ),
+    ("inventario", "activoinventario"): (
+        DocumentoAdjunto.Tipo.FACTURA,
+        DocumentoAdjunto.Tipo.FOTO,
+        DocumentoAdjunto.Tipo.GARANTIA,
+        DocumentoAdjunto.Tipo.ACTA,
+        DocumentoAdjunto.Tipo.COMPROBANTE,
+        DocumentoAdjunto.Tipo.OTRO,
+    ),
+}
+
+
+def clave_modelo_documento(objeto):
+    if objeto is None:
+        return None
+    content_type = ContentType.objects.get_for_model(objeto, for_concrete_model=False)
+    return (content_type.app_label, content_type.model)
+
+
+def tipos_documento_permitidos(objeto):
+    clave = clave_modelo_documento(objeto)
+    if clave is None:
+        return ()
+    return TIPOS_DOCUMENTO_POR_MODELO.get(clave, ())
+
+
+def choices_tipos_documento_permitidos(objeto):
+    tipos = tipos_documento_permitidos(objeto)
+    if not tipos:
+        return DocumentoAdjunto.Tipo.choices
+    return [(valor, etiqueta) for valor, etiqueta in DocumentoAdjunto.Tipo.choices if valor in tipos]

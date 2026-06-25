@@ -47,7 +47,7 @@
 - Inventario: [x] activos; [x] historial de ubicacion, responsable, reparacion
   y baja; [x] documentos adjuntos; [x] reportes.
 - Documentos adjuntos: [x] base reutilizable; [x] integracion en inventario,
-  finanzas, traslados y cargos.
+  finanzas, traslados y cargos; [x] clasificacion de tipos por modulo.
 - Escuela Dominical: [x] niveles, [x] clases y matriculas, [x] sesiones y
   asistencia, [x] corte y promocion, [x] certificados por cada nivel y egreso.
 
@@ -58,3 +58,5 @@
 - [x] Reporte financiero consolidado inicial.
 - [x] Documentar estrategia general de reportes.
 - [x] Documentar estrategia de auditoria por modulo.
+- [x] Documentar criterios de soporte nacional auditado a filiales.
+- [x] Clasificar tipos de documentos adjuntos por modulo.

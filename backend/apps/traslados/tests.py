@@ -332,6 +332,24 @@ class TrasladoMiembroTests(TestCase):
         self.assertEqual(documento.content_object, traslado)
         self.assertEqual(documento.subido_por, usuario_destino)
 
+    def test_rechaza_tipo_documento_no_permitido_para_traslado(self):
+        traslado = self.crear_traslado()
+        usuario_destino = self.crear_usuario("secretario_destino_doc", Usuario.Rol.SECRETARIO_FILIAL, self.destino)
+        self.client.force_login(usuario_destino)
+
+        response = self.client.post(
+            reverse("traslados:document-create", args=[traslado.pk]),
+            {
+                "archivo": SimpleUploadedFile("garantia.pdf", b"%PDF-1.4", content_type="application/pdf"),
+                "nombre": "Garantia incorrecta",
+                "tipo": DocumentoAdjunto.Tipo.GARANTIA,
+                "descripcion": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(DocumentoAdjunto.objects.filter(nombre="Garantia incorrecta").exists())
+
     def test_tercera_iglesia_no_descarga_documento_de_traslado(self):
         traslado = self.crear_traslado()
         usuario_origen = self.crear_usuario("secretario_origen_doc", Usuario.Rol.SECRETARIO_FILIAL, self.origen)

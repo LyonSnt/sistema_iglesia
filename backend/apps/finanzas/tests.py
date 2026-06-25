@@ -436,6 +436,24 @@ class FinanzasLocalesTests(TestCase):
         self.assertEqual(documento.content_object, movimiento)
         self.assertEqual(documento.subido_por, usuario)
 
+    def test_rechaza_tipo_documento_no_permitido_para_finanzas(self):
+        movimiento = self.crear_movimiento()
+        usuario = self.crear_usuario("tesorero_doc", Usuario.Rol.TESORERO_FILIAL, self.filial)
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("finanzas:document-create", args=[movimiento.pk]),
+            {
+                "archivo": SimpleUploadedFile("garantia.pdf", b"%PDF-1.4", content_type="application/pdf"),
+                "nombre": "Garantia incorrecta",
+                "tipo": DocumentoAdjunto.Tipo.GARANTIA,
+                "descripcion": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(DocumentoAdjunto.objects.filter(nombre="Garantia incorrecta").exists())
+
     def test_descarga_documento_financiero_respeta_alcance_por_iglesia(self):
         usuario = self.crear_usuario("tesorero_doc", Usuario.Rol.TESORERO_FILIAL, self.filial)
         usuario_otra = self.crear_usuario("tesorero_otra_doc", Usuario.Rol.TESORERO_FILIAL, self.otra_filial)

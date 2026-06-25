@@ -20,6 +20,7 @@ Indice de documentos del proyecto Ecclesia.
 - [Pendientes](pendientes.md)
 - [Analisis funcional](analisis_funcional.md)
 - [Estrategia general de reportes](reportes.md)
+- [Documentos adjuntos](documentos_adjuntos.md)
 - [Corte y promociones de Escuela Dominical](escuela_dominical_promociones.md)
 - [Certificados institucionales](certificados.md)
 
@@ -28,6 +29,7 @@ Indice de documentos del proyecto Ecclesia.
 - [Modelo multi-iglesia](multi_iglesia.md)
 - [Matriz de permisos y roles](matriz_permisos_roles.md)
 - [Seguridad](seguridad.md)
+- [Soporte nacional auditado](soporte_nacional.md)
 - [Estrategia de auditoria](auditoria.md)
 
 ## Sesiones

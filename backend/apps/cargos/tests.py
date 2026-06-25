@@ -309,6 +309,23 @@ class AsignacionCargoViewsTests(TestCase):
         self.assertEqual(documento.content_object, self.asignacion)
         self.assertEqual(documento.subido_por, usuario)
 
+    def test_rechaza_tipo_documento_no_permitido_para_cargo(self):
+        usuario = self.crear_usuario("secretario", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("cargos:document-create", args=[self.asignacion.pk]),
+            {
+                "archivo": SimpleUploadedFile("factura.pdf", b"%PDF-1.4", content_type="application/pdf"),
+                "nombre": "Factura incorrecta",
+                "tipo": DocumentoAdjunto.Tipo.FACTURA,
+                "descripcion": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(DocumentoAdjunto.objects.filter(nombre="Factura incorrecta").exists())
+
     def test_descarga_documento_respeta_alcance_de_asignacion(self):
         usuario = self.crear_usuario("secretario", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
         usuario_otra = self.crear_usuario("secretario_otra", Usuario.Rol.SECRETARIO_FILIAL, self.otra_filial)

@@ -1,6 +1,6 @@
 # Analisis Funcional De Ecclesia
 
-Ultima actualizacion: 2026-06-24.
+Ultima actualizacion: 2026-06-25.
 
 Este documento registra una revision funcional de Ecclesia como sistema de uso
 real para una organizacion religiosa nacional con iglesias filiales.
@@ -304,6 +304,8 @@ La regla vigente impide a `ADMIN_NACIONAL` operar modulos locales. Es una buena
 separacion, pero puede requerir un procedimiento de soporte auditado cuando una
 filial necesite ayuda.
 
+Estado: documentado en `docs/soporte_nacional.md`.
+
 Prioridad: baja.
 
 ### 2. Promocion de Escuela Dominical centrada en edad
@@ -319,6 +321,8 @@ Prioridad: baja.
 El modelo reutilizable de documentos adjuntos es adecuado. Funcionalmente
 conviene clasificar tipos documentales por modulo para mejorar busqueda y
 revision.
+
+Estado: corregido y documentado en `docs/documentos_adjuntos.md`.
 
 Prioridad: baja.
 
@@ -358,7 +362,9 @@ cuenta corriente nacional es una base fuerte para control financiero.
 ### Documentos adjuntos
 
 El modelo reutilizable integrado con inventario, cargos, traslados y finanzas
-evita duplicidad funcional y permite una base documental comun.
+evita duplicidad funcional y permite una base documental comun. La clasificacion
+por modulo reduce errores operativos al impedir tipos documentales incoherentes
+con el proceso asociado.
 
 ### Gestion delegada de usuarios
 
@@ -369,13 +375,13 @@ descentralizada.
 ### Traslados
 
 El concepto principal esta bien planteado: solicitud, respuesta origen/destino,
-documentos y auditoria. Lo pendiente es definir mejor sus efectos en modulos
-relacionados.
+documentos, auditoria y cierre de relaciones operativas en origen al aceptar.
 
 ## Recomendaciones Priorizadas
 
-1. Definir criterios de soporte nacional auditado a filiales.
-2. Clasificar tipos de documentos adjuntos por modulo.
+No quedan recomendaciones funcionales criticas o importantes pendientes de este
+analisis. Como mejora menor, queda validar visualmente el diseno PDF con la
+plantilla institucional cuando se entregue el archivo fuente.
 
 ## Orden Sugerido Para Correccion Uno A Uno
 

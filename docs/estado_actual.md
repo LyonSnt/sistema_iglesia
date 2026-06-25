@@ -1,6 +1,6 @@
 # Estado Actual
 
-Ultima actualizacion: 2026-06-24.
+Ultima actualizacion: 2026-06-25.
 
 ## Resumen
 
@@ -21,6 +21,9 @@ solo de esa filial.
 - `SUPERADMIN` es el unico rol con acceso tecnico total.
 - `ADMIN_NACIONAL` solo gestiona filiales, autoridades iniciales, reportes y
   consulta de auditoria; no accede a modulos operativos.
+- El soporte nacional a filiales debe ser excepcional, justificado, limitado y
+  auditado; sus criterios funcionales estan documentados en
+  `docs/soporte_nacional.md`.
 - Los cargos organizacionales nacionales se modelan como cargos/asignaciones,
   no como roles base del sistema.
 - Lideres de ministerio y maestros reciben acceso por asignacion concreta, no
@@ -183,6 +186,9 @@ solo de esa filial.
   - modelo reutilizable `DocumentoAdjunto`;
   - asociacion generica a registros con `ContentType`;
   - validacion de extension y tamano;
+  - clasificacion de tipos documentales permitidos por modulo;
+  - el formulario muestra solo los tipos validos para el registro asociado;
+  - el modelo rechaza tipos no permitidos para el modulo asociado;
   - anulado logico sin borrado fisico;
   - integracion funcional en Inventario, Cargos, Traslados y Finanzas.
 - HTMX preparado en plantilla base.
@@ -445,17 +451,18 @@ Se creo un grupo Django por cada rol inicial:
 - Migracion `finanzas.0003` creada para permitir regenerar cierres anulados y
   conservar unicidad solo entre cierres cerrados por iglesia, anio y mes.
 - Suite completa validada: 243 tests aprobados.
-- Validacion focalizada de documentos adjuntos en Cargos, Traslados y Finanzas:
-  47 tests aprobados.
+- Validacion focalizada de documentos adjuntos y modulos integrados en Cargos,
+  Traslados, Finanzas e Inventario: 69 tests aprobados.
 - `python manage.py check` sin issues y sin migraciones pendientes.
 
 ## Pendiente Proximo Recomendado
 
 Siguiente bloque recomendado:
 
-1. Definir criterios de soporte nacional auditado a filiales.
-2. Validar el diseno PDF con la plantilla institucional e incorporar logotipo
+1. Validar el diseno PDF con la plantilla institucional e incorporar logotipo
    o fondo oficial cuando se entregue el archivo fuente.
+2. Documentar convenciones de formularios HTMX antes de crecer pantallas con
+   interacciones parciales.
 
 No conviene iniciar vistas de modulos grandes hasta cerrar permisos y acceso por
 iglesia.
@@ -519,8 +526,10 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml exec web python m
 - [Usuarios de prueba](usuarios_prueba.md)
 - [Matriz de permisos y roles](matriz_permisos_roles.md)
 - [Seguridad](seguridad.md)
+- [Soporte nacional auditado](soporte_nacional.md)
 - [Estrategia de auditoria](auditoria.md)
 - [Pendientes](pendientes.md)
 - [Analisis funcional](analisis_funcional.md)
 - [Estrategia general de reportes](reportes.md)
+- [Documentos adjuntos](documentos_adjuntos.md)
 - [Tailwind CSS](tailwind.md)

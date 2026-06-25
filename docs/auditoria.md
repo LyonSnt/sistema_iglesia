@@ -153,6 +153,34 @@ Estado:
 - intervencion nacional cubierta; gestion local ordinaria no se audita de forma
   explicita.
 
+### Soporte Nacional A Filiales
+
+Auditar:
+
+- intervencion nacional sobre datos de una filial;
+- correccion de inconsistencias entre filiales;
+- desbloqueo administrativo validado por autoridad nacional;
+- intervencion tecnica excepcional de `SUPERADMIN`;
+- reemplazo o normalizacion de autoridad principal cuando afecte accesos.
+
+Datos minimos:
+
+- iglesia filial afectada;
+- modulo y registros afectados;
+- usuario solicitante;
+- usuario aprobador cuando aplique;
+- usuario ejecutor;
+- motivo;
+- accion realizada;
+- estado anterior y nuevo cuando sea posible;
+- documentos de soporte si existen.
+
+Estado:
+
+- criterios funcionales documentados en `docs/soporte_nacional.md`; pendiente
+  de implementacion solo si se habilitan permisos o pantallas especificas para
+  soporte nacional directo.
+
 ### Escuela Dominical
 
 Auditar:

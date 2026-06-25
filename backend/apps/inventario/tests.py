@@ -197,6 +197,16 @@ class InventarioTests(TestCase):
         self.assertEqual(documento.content_object, activo)
         self.assertEqual(documento.subido_por, self.tesorero)
 
+    def test_muestra_tipos_documentales_de_inventario(self):
+        activo = self.crear_activo()
+        self.client.force_login(self.tesorero)
+
+        response = self.client.get(reverse("inventario:document-create", args=[activo.pk]))
+
+        self.assertContains(response, "Factura")
+        self.assertContains(response, "Garantia")
+        self.assertContains(response, "Foto")
+
     def test_rechaza_documento_con_extension_no_permitida(self):
         activo = self.crear_activo()
         self.client.force_login(self.tesorero)

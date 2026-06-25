@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import DocumentoAdjunto
+from .models import DocumentoAdjunto, choices_tipos_documento_permitidos
 
 
 FIELD_CLASS = (
@@ -19,6 +19,7 @@ class DocumentoAdjuntoForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.objeto = objeto
         self.user = user
+        self.fields["tipo"].choices = choices_tipos_documento_permitidos(objeto)
         aplicar_estilos(self.fields.values())
 
     def save(self, commit=True):
