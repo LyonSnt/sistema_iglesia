@@ -14,7 +14,7 @@
             <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
                href="{% url 'traslados:create' %}">Solicitar traslado</a>
         </div>
-        <form class="grid gap-3 rounded border border-slate-200 bg-white p-4 md:grid-cols-[1fr_14rem_auto]"
+        <form class="grid gap-3 rounded border border-slate-200 bg-white p-4 md:grid-cols-[1fr_14rem_14rem_auto]"
               method="get">
             <label class="block">
                 <span class="text-sm font-medium text-slate-700">Buscar</span>
@@ -34,6 +34,16 @@
                     {% endfor %}
                 </select>
             </label>
+            <label class="block">
+                <span class="text-sm font-medium text-slate-700">Recepcion</span>
+                <select class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                        name="recepcion">
+                    <option value="">Todas</option>
+                    <option value="pendiente"{% if recepcion == "pendiente" %} selected{% endif %}>Pendiente</option>
+                    <option value="confirmada"{% if recepcion == "confirmada" %} selected{% endif %}>Confirmada</option>
+                    <option value="integracion_pendiente"{% if recepcion == "integracion_pendiente" %} selected{% endif %}>Integracion pendiente</option>
+                </select>
+            </label>
             <div class="flex items-end gap-2">
                 <button class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
                         type="submit">Filtrar</button>
@@ -49,6 +59,8 @@
                         <th class="px-4 py-3">Origen</th>
                         <th class="px-4 py-3">Destino</th>
                         <th class="px-4 py-3">Estado</th>
+                        <th class="px-4 py-3">Recepcion</th>
+                        <th class="px-4 py-3">Integracion</th>
                         <th class="px-4 py-3">Solicitud</th>
                     </tr>
                 </thead>
@@ -62,11 +74,29 @@
                             <td class="px-4 py-3 text-slate-700">{{ traslado.iglesia_origen.codigo }}</td>
                             <td class="px-4 py-3 text-slate-700">{{ traslado.iglesia_destino.codigo }}</td>
                             <td class="px-4 py-3 text-slate-700">{{ traslado.get_estado_display }}</td>
+                            <td class="px-4 py-3 text-slate-700">
+                                {% if traslado.recepcion_confirmada_en %}
+                                    Confirmada
+                                {% elif traslado.pendiente_recepcion %}
+                                    Pendiente
+                                {% else %}
+                                    No aplica
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-slate-700">
+                                {% if traslado.integracion_destino_pendiente %}
+                                    Pendiente
+                                {% elif traslado.recepcion_confirmada_en %}
+                                    Revisada
+                                {% else %}
+                                    No aplica
+                                {% endif %}
+                            </td>
                             <td class="px-4 py-3 text-slate-700">{{ traslado.creado_en|date:"Y-m-d H:i" }}</td>
                         </tr>
                     {% empty %}
                         <tr>
-                            <td class="px-4 py-8 text-center text-sm text-slate-500" colspan="5">No hay traslados para los filtros actuales.</td>
+                            <td class="px-4 py-8 text-center text-sm text-slate-500" colspan="7">No hay traslados para los filtros actuales.</td>
                         </tr>
                     {% endfor %}
                 </tbody>

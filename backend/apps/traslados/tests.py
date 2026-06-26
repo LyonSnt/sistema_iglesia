@@ -300,6 +300,287 @@ class TrasladoMiembroTests(TestCase):
         self.assertEqual(self.miembro.iglesia, self.origen)
         self.assertTrue(RegistroAuditoria.objects.filter(modulo="traslados", accion="ANULAR").exists())
 
+    def test_destino_confirma_recepcion_pastoral_de_traslado_aceptado(self):
+        traslado = self.crear_traslado()
+        usuario_destino = self.crear_usuario("pastor_recepcion", Usuario.Rol.PASTOR_FILIAL, self.destino)
+        self.client.force_login(usuario_destino)
+        self.client.post(reverse("traslados:aceptar", args=[traslado.pk]), {"observacion": "Aceptado"})
+
+        response = self.client.post(
+            reverse("traslados:recepcion", args=[traslado.pk]),
+            {"observacion_recepcion": "Visitado y presentado a la congregacion."},
+        )
+
+        self.assertRedirects(response, reverse("traslados:detail", args=[traslado.pk]))
+        traslado.refresh_from_db()
+        self.assertFalse(traslado.pendiente_recepcion)
+        self.assertEqual(traslado.recepcion_confirmada_por, usuario_destino)
+        self.assertIsNotNone(traslado.recepcion_confirmada_en)
+        self.assertEqual(traslado.observacion_recepcion, "Visitado y presentado a la congregacion.")
+        self.assertTrue(RegistroAuditoria.objects.filter(modulo="traslados", accion="CONFIRMAR_RECEPCION").exists())
+
+    def test_no_confirma_recepcion_si_traslado_no_esta_aceptado(self):
+        traslado = self.crear_traslado()
+        usuario_destino = self.crear_usuario("pastor_recepcion_pendiente", Usuario.Rol.PASTOR_FILIAL, self.destino)
+        self.client.force_login(usuario_destino)
+
+        response = self.client.post(
+            reverse("traslados:recepcion", args=[traslado.pk]),
+            {"observacion_recepcion": "Intento anticipado"},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        traslado.refresh_from_db()
+        self.assertIsNone(traslado.recepcion_confirmada_en)
+
+    def test_origen_no_confirma_recepcion_en_destino(self):
+        traslado = self.crear_traslado()
+        usuario_destino = self.crear_usuario("pastor_destino_recepcion", Usuario.Rol.PASTOR_FILIAL, self.destino)
+        self.client.force_login(usuario_destino)
+        self.client.post(reverse("traslados:aceptar", args=[traslado.pk]), {"observacion": "Aceptado"})
+
+        usuario_origen = self.crear_usuario("pastor_origen_recepcion", Usuario.Rol.PASTOR_FILIAL, self.origen)
+        self.client.force_login(usuario_origen)
+        response = self.client.post(
+            reverse("traslados:recepcion", args=[traslado.pk]),
+            {"observacion_recepcion": "No corresponde"},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        traslado.refresh_from_db()
+        self.assertIsNone(traslado.recepcion_confirmada_en)
+
+    def test_listado_filtra_recepciones_pendientes(self):
+        traslado_pendiente = self.crear_traslado()
+        usuario_destino = self.crear_usuario("pastor_destino_filtro", Usuario.Rol.PASTOR_FILIAL, self.destino)
+        self.client.force_login(usuario_destino)
+        self.client.post(reverse("traslados:aceptar", args=[traslado_pendiente.pk]), {"observacion": "Aceptado"})
+
+        otro_miembro = Miembro.objects.create(
+            iglesia=self.origen,
+            nombres="Beatriz",
+            apellidos="Santos",
+            cedula="0303030303",
+            sexo=Miembro.Sexo.FEMENINO,
+        )
+        traslado_confirmado = TrasladoMiembro.objects.create(
+            miembro=otro_miembro,
+            iglesia_origen=self.origen,
+            iglesia_destino=self.destino,
+            motivo="Cambio de domicilio",
+            solicitado_por=self.crear_usuario("solicitante_confirmado", Usuario.Rol.SECRETARIO_FILIAL, self.origen),
+        )
+        self.client.post(reverse("traslados:aceptar", args=[traslado_confirmado.pk]), {"observacion": "Aceptado"})
+        self.client.post(
+            reverse("traslados:recepcion", args=[traslado_confirmado.pk]),
+            {"observacion_recepcion": "Integrada"},
+        )
+
+        response = self.client.get(reverse("traslados:list"), {"recepcion": "pendiente"})
+
+        self.assertContains(response, traslado_pendiente.miembro.nombres)
+        self.assertNotContains(response, traslado_confirmado.miembro.nombres)
+
+    def test_destino_revisa_integracion_familiar_pendiente(self):
+        traslado = self.crear_traslado()
+        usuario_destino = self.crear_usuario("pastor_integracion_familia", Usuario.Rol.PASTOR_FILIAL, self.destino)
+        self.client.force_login(usuario_destino)
+        self.client.post(reverse("traslados:aceptar", args=[traslado.pk]), {"observacion": "Aceptado"})
+        self.client.post(reverse("traslados:recepcion", args=[traslado.pk]), {"observacion_recepcion": "Recibido"})
+
+        traslado.refresh_from_db()
+        self.assertTrue(traslado.integracion_familiar_pendiente)
+
+        response = self.client.post(
+            reverse("traslados:integracion-familia", args=[traslado.pk]),
+            {"observacion": "Se revisara vinculacion familiar en visita pastoral."},
+        )
+
+        self.assertRedirects(response, reverse("traslados:detail", args=[traslado.pk]))
+        traslado.refresh_from_db()
+        self.assertFalse(traslado.integracion_familiar_pendiente)
+        self.assertEqual(traslado.familia_destino_revisada_por, usuario_destino)
+        self.assertIsNotNone(traslado.familia_destino_revisada_en)
+        self.assertEqual(
+            traslado.observacion_familia_destino,
+            "Se revisara vinculacion familiar en visita pastoral.",
+        )
+        self.assertTrue(
+            RegistroAuditoria.objects.filter(modulo="traslados", accion="REVISAR_INTEGRACION_FAMILIAR").exists()
+        )
+
+    def test_destino_vincula_familia_desde_integracion_de_traslado(self):
+        traslado = self.crear_traslado()
+        usuario_destino = self.crear_usuario("pastor_vincula_familia", Usuario.Rol.PASTOR_FILIAL, self.destino)
+        jefe_destino = Miembro.objects.create(
+            iglesia=self.destino,
+            nombres="Julia",
+            apellidos="Perez",
+            cedula="0505050505",
+            sexo=Miembro.Sexo.FEMENINO,
+        )
+        familia_destino = Familia.objects.create(
+            iglesia=self.destino,
+            nombre="Familia Perez",
+            jefe_hogar=jefe_destino,
+        )
+        self.client.force_login(usuario_destino)
+        self.client.post(reverse("traslados:aceptar", args=[traslado.pk]), {"observacion": "Aceptado"})
+        self.client.post(reverse("traslados:recepcion", args=[traslado.pk]), {"observacion_recepcion": "Recibido"})
+
+        response = self.client.post(
+            reverse("traslados:vincular-familia", args=[traslado.pk]),
+            {
+                "familia": familia_destino.pk,
+                "relacion": MiembroFamilia.Relacion.OTRO,
+                "observacion": "Integrado a familia cercana.",
+            },
+        )
+
+        self.assertRedirects(response, reverse("traslados:detail", args=[traslado.pk]))
+        traslado.refresh_from_db()
+        vinculo = MiembroFamilia.objects.get(
+            familia=familia_destino,
+            miembro=self.miembro,
+            relacion=MiembroFamilia.Relacion.OTRO,
+        )
+        self.assertTrue(vinculo.activo)
+        self.assertFalse(traslado.integracion_familiar_pendiente)
+        self.assertEqual(traslado.familia_destino_revisada_por, usuario_destino)
+        self.assertEqual(traslado.observacion_familia_destino, "Integrado a familia cercana.")
+        self.assertTrue(
+            RegistroAuditoria.objects.filter(modulo="traslados", accion="VINCULAR_FAMILIA_DESTINO").exists()
+        )
+
+    def test_destino_revisa_escuela_dominical_pendiente_para_menor(self):
+        self.miembro.fecha_nacimiento = date(2014, 5, 10)
+        self.miembro.save(update_fields=["fecha_nacimiento"])
+        traslado = self.crear_traslado()
+        usuario_destino = self.crear_usuario("pastor_integracion_escuela", Usuario.Rol.PASTOR_FILIAL, self.destino)
+        self.client.force_login(usuario_destino)
+        self.client.post(reverse("traslados:aceptar", args=[traslado.pk]), {"observacion": "Aceptado"})
+        self.client.post(reverse("traslados:recepcion", args=[traslado.pk]), {"observacion_recepcion": "Recibido"})
+
+        traslado.refresh_from_db()
+        self.assertTrue(traslado.revision_escuela_dominical_pendiente)
+
+        response = self.client.post(
+            reverse("traslados:integracion-escuela", args=[traslado.pk]),
+            {"observacion": "Debe matricularse en una clase del periodo actual."},
+        )
+
+        self.assertRedirects(response, reverse("traslados:detail", args=[traslado.pk]))
+        traslado.refresh_from_db()
+        self.assertFalse(traslado.revision_escuela_dominical_pendiente)
+        self.assertEqual(traslado.escuela_dominical_destino_revisada_por, usuario_destino)
+        self.assertIsNotNone(traslado.escuela_dominical_destino_revisada_en)
+        self.assertEqual(
+            traslado.observacion_escuela_dominical_destino,
+            "Debe matricularse en una clase del periodo actual.",
+        )
+        self.assertTrue(
+            RegistroAuditoria.objects.filter(modulo="traslados", accion="REVISAR_INTEGRACION_ESCUELA").exists()
+        )
+
+    def test_destino_matricula_escuela_desde_integracion_de_traslado(self):
+        self.miembro.fecha_nacimiento = date(2014, 5, 10)
+        self.miembro.save(update_fields=["fecha_nacimiento"])
+        periodo = Periodo.objects.create(
+            nombre="2026 destino",
+            fecha_inicio=date(2026, 1, 1),
+            fecha_fin=date(2026, 12, 31),
+        )
+        nivel = NivelEscuelaDominical.objects.create(
+            iglesia=self.destino,
+            nombre="Intermedios destino",
+            edad_minima=10,
+            edad_maxima=12,
+        )
+        clase = ClaseEscuelaDominical.objects.create(
+            iglesia=self.destino,
+            nombre="Intermedios destino A",
+            nivel=nivel,
+            periodo=periodo,
+        )
+        traslado = self.crear_traslado()
+        usuario_destino = self.crear_usuario("pastor_matricula_escuela", Usuario.Rol.PASTOR_FILIAL, self.destino)
+        self.client.force_login(usuario_destino)
+        self.client.post(reverse("traslados:aceptar", args=[traslado.pk]), {"observacion": "Aceptado"})
+        self.client.post(reverse("traslados:recepcion", args=[traslado.pk]), {"observacion_recepcion": "Recibido"})
+
+        response = self.client.post(
+            reverse("traslados:matricular-escuela", args=[traslado.pk]),
+            {
+                "clase": clase.pk,
+                "fecha_inscripcion": "2026-02-01",
+                "observacion": "Matricula por traslado aceptado.",
+            },
+        )
+
+        self.assertRedirects(response, reverse("traslados:detail", args=[traslado.pk]))
+        traslado.refresh_from_db()
+        matricula = MatriculaEscuelaDominical.objects.get(clase=clase, alumno=self.miembro)
+        self.assertTrue(matricula.activo)
+        self.assertEqual(matricula.estado, MatriculaEscuelaDominical.Estado.ACTIVA)
+        self.assertEqual(matricula.fecha_inscripcion, date(2026, 2, 1))
+        self.assertFalse(traslado.revision_escuela_dominical_pendiente)
+        self.assertEqual(traslado.escuela_dominical_destino_revisada_por, usuario_destino)
+        self.assertEqual(traslado.observacion_escuela_dominical_destino, "Matricula por traslado aceptado.")
+        self.assertTrue(
+            RegistroAuditoria.objects.filter(modulo="traslados", accion="MATRICULAR_ESCUELA_DESTINO").exists()
+        )
+
+    def test_origen_no_revisa_integracion_en_destino(self):
+        traslado = self.crear_traslado()
+        usuario_destino = self.crear_usuario("pastor_destino_integracion", Usuario.Rol.PASTOR_FILIAL, self.destino)
+        self.client.force_login(usuario_destino)
+        self.client.post(reverse("traslados:aceptar", args=[traslado.pk]), {"observacion": "Aceptado"})
+        self.client.post(reverse("traslados:recepcion", args=[traslado.pk]), {"observacion_recepcion": "Recibido"})
+
+        usuario_origen = self.crear_usuario("pastor_origen_integracion", Usuario.Rol.PASTOR_FILIAL, self.origen)
+        self.client.force_login(usuario_origen)
+        response = self.client.post(
+            reverse("traslados:integracion-familia", args=[traslado.pk]),
+            {"observacion": "No corresponde"},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        traslado.refresh_from_db()
+        self.assertIsNone(traslado.familia_destino_revisada_en)
+
+    def test_listado_filtra_integraciones_pendientes(self):
+        traslado_pendiente = self.crear_traslado()
+        usuario_destino = self.crear_usuario("pastor_destino_integracion_filtro", Usuario.Rol.PASTOR_FILIAL, self.destino)
+        self.client.force_login(usuario_destino)
+        self.client.post(reverse("traslados:aceptar", args=[traslado_pendiente.pk]), {"observacion": "Aceptado"})
+        self.client.post(reverse("traslados:recepcion", args=[traslado_pendiente.pk]), {"observacion_recepcion": "Recibido"})
+
+        otro_miembro = Miembro.objects.create(
+            iglesia=self.origen,
+            nombres="Diana",
+            apellidos="Rios",
+            cedula="0404040404",
+            sexo=Miembro.Sexo.FEMENINO,
+        )
+        traslado_revisado = TrasladoMiembro.objects.create(
+            miembro=otro_miembro,
+            iglesia_origen=self.origen,
+            iglesia_destino=self.destino,
+            motivo="Cambio de domicilio",
+            solicitado_por=self.crear_usuario("solicitante_revisado", Usuario.Rol.SECRETARIO_FILIAL, self.origen),
+        )
+        self.client.post(reverse("traslados:aceptar", args=[traslado_revisado.pk]), {"observacion": "Aceptado"})
+        self.client.post(reverse("traslados:recepcion", args=[traslado_revisado.pk]), {"observacion_recepcion": "Recibido"})
+        self.client.post(
+            reverse("traslados:integracion-familia", args=[traslado_revisado.pk]),
+            {"observacion": "Revision completa"},
+        )
+
+        response = self.client.get(reverse("traslados:list"), {"recepcion": "integracion_pendiente"})
+
+        self.assertContains(response, traslado_pendiente.miembro.nombres)
+        self.assertNotContains(response, traslado_revisado.miembro.nombres)
+
     def test_no_permite_duplicar_traslado_pendiente(self):
         self.crear_traslado()
         usuario = self.crear_usuario("secretario", Usuario.Rol.SECRETARIO_FILIAL, self.origen)

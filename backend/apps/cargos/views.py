@@ -12,7 +12,12 @@ from apps.documentos.models import DocumentoAdjunto
 
 from .forms import AsignacionCargoForm, FinalizarAsignacionCargoForm
 from .models import AsignacionCargo
-from .servicios import finalizar_acceso_por_asignacion, sincronizar_acceso_por_asignacion
+from .servicios import (
+    recalcular_acceso_por_usuario,
+    rol_para_nombre_cargo,
+    finalizar_acceso_por_asignacion,
+    sincronizar_acceso_por_asignacion,
+)
 
 
 class AsignacionCargoQuerysetMixin:
@@ -89,8 +94,27 @@ class AsignacionCargoFormMixin(AsignacionCargoQuerysetMixin, PermisoModuloMixin)
         return kwargs
 
     def form_valid(self, form):
+        usuario_previo = None
+        cargo_previo_funcional = False
+        if form.instance.pk:
+            asignacion_previa = (
+                AsignacionCargo.objects.select_related("cargo", "usuario")
+                .filter(pk=form.instance.pk)
+                .first()
+            )
+            if asignacion_previa is not None:
+                usuario_previo = asignacion_previa.usuario
+                cargo_previo_funcional = (
+                    rol_para_nombre_cargo(asignacion_previa.cargo.nombre) is not None
+                )
+
         response = super().form_valid(form)
         sincronizar_acceso_por_asignacion(self.object)
+        cargo_actual_funcional = rol_para_nombre_cargo(self.object.cargo.nombre) is not None
+        if cargo_previo_funcional and usuario_previo != self.object.usuario:
+            recalcular_acceso_por_usuario(usuario_previo)
+        if cargo_previo_funcional or cargo_actual_funcional:
+            recalcular_acceso_por_usuario(self.object.usuario)
         return response
 
 

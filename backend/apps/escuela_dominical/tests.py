@@ -1,6 +1,7 @@
 from datetime import date
 
 from django.contrib.admin.sites import AdminSite
+from django.core.exceptions import ValidationError
 from django.test import RequestFactory
 from django.test import TestCase
 from django.urls import reverse
@@ -461,6 +462,39 @@ class EscuelaDominicalViewsContinuacionTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "alcanzo el cupo")
+
+    def test_matricula_rechaza_doble_activa_en_mismo_periodo(self):
+        otra_clase = ClaseEscuelaDominical.objects.create(
+            iglesia=self.filial,
+            nombre="Primarios B",
+            nivel=self.nivel,
+            periodo=self.periodo,
+            maestro=self.maestro,
+        )
+
+        matricula = MatriculaEscuelaDominical(
+            clase=otra_clase,
+            alumno=self.alumno,
+            fecha_inscripcion=date(2026, 2, 1),
+        )
+
+        with self.assertRaisesMessage(ValidationError, "matricula activa en este periodo"):
+            matricula.full_clean()
+
+    def test_formulario_matricula_no_lista_alumno_activo_en_mismo_periodo(self):
+        otra_clase = ClaseEscuelaDominical.objects.create(
+            iglesia=self.filial,
+            nombre="Primarios B",
+            nivel=self.nivel,
+            periodo=self.periodo,
+            maestro=self.maestro,
+        )
+        self.client.force_login(self.maestro)
+
+        response = self.client.get(reverse("escuela_dominical:matricula-add", args=[otra_clase.pk]))
+
+        self.assertNotContains(response, self.alumno.nombres)
+        self.assertContains(response, self.otro_alumno.nombres)
 
     def test_rol_sin_permiso_recibe_403(self):
         usuario = self.crear_usuario("secretario", Usuario.Rol.SECRETARIO_FILIAL, self.filial)

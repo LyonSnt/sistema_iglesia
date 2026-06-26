@@ -87,7 +87,8 @@ solo de esa filial.
   - sincronizacion de acceso para cargos funcionales locales asignados a
     usuarios: Pastor, Encargado, Secretario y Tesorero;
   - recalculo del rol del usuario al finalizar una asignacion funcional,
-    conservando otro cargo vigente o bajando a solo lectura;
+    conservando otro cargo vigente o bajando a solo lectura, incluso si la
+    finalizacion se registra desde la edicion general de la asignacion;
   - documentos adjuntos protegidos por permiso y alcance por iglesia.
 - Modulo Ministerios iniciado:
   - listado en `/ministerios/`;
@@ -99,7 +100,8 @@ solo de esa filial.
   - detalle, creacion y edicion de clases;
   - niveles por iglesia con rangos de edad;
   - clases por periodo, nivel, maestro, aula, horario y cupo;
-  - matricula y edicion de alumnos por clase;
+  - matricula y edicion de alumnos por clase, con control de una sola matricula
+    activa por alumno, iglesia y periodo;
   - sesiones por clase y fecha;
   - toma masiva de asistencia con estados presente, ausente y justificado;
   - cierre de sesiones y correccion reservada a autoridades;
@@ -111,7 +113,8 @@ solo de esa filial.
   - listado funcional en `/certificados/`;
   - certificados para cada cambio de nivel y egreso a Jovenes;
   - emision individual o por lote desde promociones confirmadas;
-  - numeracion transaccional unica;
+  - numeracion transaccional unica, reservada despues de validar datos y
+    firmantes requeridos;
   - PDF A4 horizontal con datos de alumno, nivel, periodo y firmantes;
   - firmas historicas de Pastor y Director de Escuela Dominical;
   - anulacion sin borrado ni reutilizacion del numero;
@@ -128,6 +131,18 @@ solo de esa filial.
     ministerio;
   - documentos adjuntos protegidos por permiso y alcance origen/destino;
   - auditoria explicita del flujo de traslado;
+  - recepcion pastoral posterior en destino para traslados aceptados;
+  - filtro de recepciones pendientes o confirmadas en el listado;
+  - auditoria de confirmacion de recepcion pastoral;
+  - checklist de integracion en destino posterior a recepcion:
+    revision familiar y revision de Escuela Dominical cuando aplica;
+  - vinculacion asistida a familia existente de la iglesia destino desde el
+    checklist de integracion;
+  - matricula asistida en clase existente de Escuela Dominical de la iglesia
+    destino desde el checklist de integracion;
+  - filtro de integraciones pendientes en el listado;
+  - auditoria de revisiones y acciones asistidas de integracion familiar y
+    Escuela Dominical;
   - reporte inicial de traslados en `/reportes/traslados/`.
 - Modulo Reportes iniciado:
   - entrada principal de Reportes apunta al reporte financiero consolidado;
@@ -156,7 +171,9 @@ solo de esa filial.
   - totales congelados por iglesia, anio y mes;
   - bloqueo de nuevos movimientos y anulaciones dentro de meses cerrados;
   - anulacion controlada de cierres sin aporte nacional generado para corregir
-    movimientos y regenerar el cierre con totales recalculados.
+    movimientos y regenerar el cierre con totales recalculados;
+  - anulacion de cierres con aporte nacional generado solo cuando el aporte
+    pendiente fue anulado previamente.
 - Modulo Aportes nacionales iniciado:
   - listado en `/aportes-nacionales/`;
   - generacion de aporte desde cierres mensuales cerrados;
@@ -165,9 +182,20 @@ solo de esa filial.
   - consulta por filial con alcance por iglesia;
   - generacion de aportes reservada a `SUPERADMIN`;
   - registro de pago por `SUPERADMIN` o `ADMIN_NACIONAL`;
+  - pagos parciales con saldo pendiente hasta completar el aporte;
+  - acuerdos de pago vigentes sobre aportes pendientes;
+  - fecha de vencimiento para identificar mora en cuenta corriente;
+  - anulacion controlada de aportes pendientes por `SUPERADMIN` para corregir
+    el cierre mensual origen;
+  - regeneracion de aporte anulado sobre el mismo cierre corregido, conservando
+    trazabilidad de la anulacion previa;
+  - ajustes formales sobre aportes ya pagados con recibo mediante cargos y
+    abonos, sin modificar el recibo original;
   - numeracion transaccional de recibos;
-  - resumen de pendiente y pagado;
+  - resumen de pendiente, pagado, cargos, abonos, mora y saldo;
   - cuenta corriente detallada en `/aportes-nacionales/cuenta-corriente/`;
+  - tablero de morosidad en `/aportes-nacionales/tablero-morosidad/` con
+    filtros por filial, zona y estado;
   - recibo PDF para aportes pagados.
 - Modulo Inventario iniciado:
   - listado en `/inventario/`;
@@ -406,20 +434,24 @@ Se creo un grupo Django por cada rol inicial:
 - Tests de `apps.api` cubren consulta, filtros, permisos y alcance por iglesia
   para Ministerios y participaciones ministeriales.
 - Tests de `apps.cargos` cubren listado, detalle, creacion, validaciones,
-  finalizacion, sincronizacion de roles por asignacion funcional, documentos
-  adjuntos, permisos y aislamiento por iglesia.
+  finalizacion, sincronizacion y recalculo de roles por asignacion funcional,
+  documentos adjuntos, permisos y aislamiento por iglesia.
 - API de Cargos/directivas expone cargos y asignaciones en modo consulta,
   protegida por permisos y alcance por iglesia.
 - Tests de `apps.ministerios` cubren listado, detalle, creacion, validaciones,
   participaciones, finalizacion, permisos y aislamiento por iglesia.
 - Tests de `apps.escuela_dominical` cubren niveles, clases, maestros, matriculas,
-  cupos, sesiones, asistencia, cierre, permisos, aislamiento por iglesia,
-  cortes de edad, promociones, egreso a Jovenes e idempotencia.
+  cupos, una sola matricula activa por alumno y periodo, sesiones, asistencia,
+  cierre, permisos, aislamiento por iglesia, cortes de edad, promociones,
+  egreso a Jovenes e idempotencia.
 - Tests de `apps.certificados` cubren elegibilidad, numeracion, firmas vigentes,
-  emision idempotente, PDF, permisos, aislamiento por iglesia y anulacion.
+  validacion previa a la reserva de secuencial, emision idempotente, PDF,
+  permisos, aislamiento por iglesia y anulacion.
 - Tests de `apps.traslados` cubren solicitud, permisos, alcance por iglesia,
-  aceptacion, rechazo, anulacion, auditoria, documentos adjuntos y movimiento
-  del miembro, incluyendo cierre de relaciones locales activas en origen.
+  aceptacion, rechazo, anulacion, recepcion pastoral en destino, auditoria,
+  checklist de integracion en destino, vinculacion familiar asistida, matricula
+  asistida de Escuela Dominical, documentos adjuntos y movimiento del miembro,
+  incluyendo cierre de relaciones locales activas en origen.
 - Tests de `apps.reportes` cubren reporte inicial de traslados.
 - Tests de `apps.reportes` cubren reporte financiero consolidado, permisos
   nacionales, filtros y totales.
@@ -431,12 +463,15 @@ Se creo un grupo Django por cada rol inicial:
 - Tests de `apps.finanzas` cubren conceptos, movimientos, permisos, gestion
   local, aislamiento por iglesia, validaciones, anulacion, cierres mensuales,
   totales congelados, duplicados, documentos adjuntos, bloqueo por mes cerrado
-  y correccion posterior de cierres sin aporte nacional generado.
+  y correccion posterior de cierres sin aporte nacional generado o con aporte
+  pendiente previamente anulado.
 - Tests de `apps.aportes_nacionales` cubren generacion desde cierre mensual,
   porcentaje parametrizado, permisos, no duplicar aportes, aislamiento por
   iglesia, registro de pago por operacion financiera nacional, numeracion de
-  recibos, totales pendiente/pagado y seed de parametros documentales, cuenta
-  corriente y recibo PDF.
+  recibos, pagos parciales, acuerdos de pago, mora, anulacion de aportes
+  pendientes para correccion, regeneracion del aporte anulado, ajustes formales
+  sobre aportes pagados, totales pendiente/pagado, cargos, abonos y seed de
+  parametros documentales, cuenta corriente, tablero de morosidad y recibo PDF.
 - Tests de `apps.auditoria` cubren intervencion nacional sobre filiales y
   ausencia de auditoria nacional en la gestion propia de una filial.
 - Tests de `apps.iglesias` y `apps.usuarios` cubren la separacion visual entre
@@ -450,7 +485,29 @@ Se creo un grupo Django por cada rol inicial:
 - Migracion `documentos.0001` aplicada para documentos adjuntos reutilizables.
 - Migracion `finanzas.0003` creada para permitir regenerar cierres anulados y
   conservar unicidad solo entre cierres cerrados por iglesia, anio y mes.
+- Migracion `aportes_nacionales.0002` creada para registrar anulacion
+  controlada de aportes pendientes.
+- Migracion merge `aportes_nacionales.0003` creada para unir las ramas de
+  migracion de recibos y anulacion de aportes.
+- Migracion `aportes_nacionales.0004` creada para ajustes formales de aportes
+  pagados.
+- Migracion `aportes_nacionales.0005` creada para fecha de vencimiento, pagos
+  parciales y acuerdos de pago.
 - Suite completa validada: 243 tests aprobados.
+- Suite focalizada de traslados validada despues de recepcion pastoral,
+  integracion en destino y acciones asistidas: 25 tests aprobados.
+- Suite focalizada de Certificados, Cargos y Escuela Dominical validada despues
+  de los controles de secuencial, roles funcionales y matricula activa por
+  periodo: 52 tests aprobados.
+- Suite focalizada de Finanzas y Aportes nacionales validada despues del flujo
+  de anulacion de aporte pendiente y correccion de cierre origen: 41 tests
+  aprobados.
+- Suite focalizada de Aportes nacionales validada despues de ajustes formales
+  sobre aportes pagados con recibo: 26 tests aprobados.
+- Suite focalizada de Finanzas y Aportes nacionales validada despues de pagos
+  parciales, mora y acuerdos de pago: 55 tests aprobados.
+- Suite focalizada de Finanzas y Aportes nacionales validada despues del tablero
+  consolidado de morosidad: 59 tests aprobados.
 - Validacion focalizada de documentos adjuntos y modulos integrados en Cargos,
   Traslados, Finanzas e Inventario: 69 tests aprobados.
 - `python manage.py check` sin issues y sin migraciones pendientes.
@@ -459,13 +516,32 @@ Se creo un grupo Django por cada rol inicial:
 
 Siguiente bloque recomendado:
 
-1. Validar el diseno PDF con la plantilla institucional e incorporar logotipo
-   o fondo oficial cuando se entregue el archivo fuente.
-2. Documentar convenciones de formularios HTMX antes de crecer pantallas con
-   interacciones parciales.
+1. Cerrar ciclos administrativos ya iniciados antes de crear modulos grandes
+   nuevos:
+   - completar traslado familiar y tareas pastorales posteriores a integracion
+     de traslados;
+   - ciclo pastoral ampliado de miembros;
+   - cambios formales de autoridades y cargos;
+   - inventario fisico, actas y aprobaciones de baja.
+2. Reforzar controles preventivos:
+   - busqueda de duplicados;
+   - motivos obligatorios para cambios sensibles;
+   - documentos obligatorios por proceso;
+   - advertencias por acciones inter-iglesia;
+   - distincion entre reportes preliminares y oficiales.
+3. Automatizar seguimiento operativo:
+   - alertas de vencimientos;
+   - recordatorios de cierres y aportes pendientes;
+   - tareas de integracion en destino;
+   - resumen periodico de auditoria critica.
+4. Mantener como mejoras complementarias:
+   - validar el diseno PDF con la plantilla institucional e incorporar logotipo
+     o fondo oficial cuando se entregue el archivo fuente;
+   - aplicar las convenciones documentadas de formularios HTMX al crecer
+     pantallas con interacciones parciales.
 
-No conviene iniciar vistas de modulos grandes hasta cerrar permisos y acceso por
-iglesia.
+No conviene iniciar vistas de modulos grandes hasta cerrar procesos,
+controles y automatizaciones de los modulos ya implementados.
 
 ## Comandos Utiles
 
@@ -532,4 +608,5 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml exec web python m
 - [Analisis funcional](analisis_funcional.md)
 - [Estrategia general de reportes](reportes.md)
 - [Documentos adjuntos](documentos_adjuntos.md)
+- [HTMX](htmx.md)
 - [Tailwind CSS](tailwind.md)

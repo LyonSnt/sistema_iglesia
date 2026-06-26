@@ -122,6 +122,16 @@ class MatriculaEscuelaDominical(TimeStampedModel, ActiveModel):
         errors = {}
         if self.clase_id and self.alumno_id and self.clase.iglesia_id != self.alumno.iglesia_id:
             errors["alumno"] = "El alumno debe pertenecer a la misma iglesia de la clase."
+        if self.clase_id and self.alumno_id and self.estado == self.Estado.ACTIVA and self.activo:
+            matricula_activa = MatriculaEscuelaDominical.objects.filter(
+                alumno=self.alumno,
+                clase__iglesia=self.clase.iglesia,
+                clase__periodo=self.clase.periodo,
+                estado=self.Estado.ACTIVA,
+                activo=True,
+            ).exclude(pk=self.pk)
+            if matricula_activa.exists():
+                errors["alumno"] = "El alumno ya tiene una matricula activa en este periodo."
         if self.fecha_salida and self.fecha_inscripcion and self.fecha_salida < self.fecha_inscripcion:
             errors["fecha_salida"] = "La fecha de salida no puede ser anterior a la inscripcion."
         if errors:

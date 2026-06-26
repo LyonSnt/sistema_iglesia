@@ -13,9 +13,24 @@ from apps.core.permisos import ACCION_GESTIONAR, ACCION_VER, MODULO_TRASLADOS, P
 from apps.documentos.forms import AnularDocumentoAdjuntoForm, DocumentoAdjuntoForm
 from apps.documentos.models import DocumentoAdjunto
 
-from .forms import ResponderTrasladoForm, TrasladoMiembroForm
+from .forms import (
+    ConfirmarRecepcionTrasladoForm,
+    MatricularEscuelaDestinoForm,
+    ResponderTrasladoForm,
+    RevisionIntegracionDestinoForm,
+    TrasladoMiembroForm,
+    VincularFamiliaDestinoForm,
+)
 from .models import TrasladoMiembro
-from .servicios import aceptar_traslado, anular_traslado, rechazar_traslado
+from .servicios import (
+    aceptar_traslado,
+    anular_traslado,
+    confirmar_recepcion_traslado,
+    confirmar_revision_integracion_destino,
+    matricular_escuela_destino,
+    rechazar_traslado,
+    vincular_familia_destino,
+)
 
 
 class TrasladoQuerysetMixin:
@@ -48,6 +63,15 @@ class TrasladoListView(TrasladoQuerysetMixin, PermisoModuloMixin, ListView):
         if estado:
             queryset = queryset.filter(estado=estado)
 
+        recepcion = self.request.GET.get("recepcion", "").strip()
+        if recepcion == "pendiente":
+            queryset = queryset.filter(
+                estado=TrasladoMiembro.Estado.ACEPTADO,
+                recepcion_confirmada_en__isnull=True,
+            )
+        elif recepcion == "confirmada":
+            queryset = queryset.filter(recepcion_confirmada_en__isnull=False)
+
         query = self.request.GET.get("q", "").strip()
         if query:
             queryset = queryset.filter(
@@ -58,11 +82,19 @@ class TrasladoListView(TrasladoQuerysetMixin, PermisoModuloMixin, ListView):
                 | Q(iglesia_origen__codigo__icontains=query)
                 | Q(iglesia_destino__codigo__icontains=query)
             )
+        if recepcion == "integracion_pendiente":
+            ids_pendientes = [
+                traslado.pk
+                for traslado in queryset.select_related("miembro", "iglesia_destino")
+                if traslado.integracion_destino_pendiente
+            ]
+            queryset = queryset.filter(pk__in=ids_pendientes)
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["estado"] = self.request.GET.get("estado", "").strip()
+        context["recepcion"] = self.request.GET.get("recepcion", "").strip()
         context["q"] = self.request.GET.get("q", "").strip()
         context["estados"] = TrasladoMiembro.Estado.choices
         return context
@@ -84,6 +116,12 @@ class TrasladoDetailView(TrasladoQuerysetMixin, PermisoModuloMixin, DetailView):
         )
         context["puede_anular"] = traslado.pendiente and (
             usuario_es_nacional(user) or user.iglesia_id == traslado.iglesia_origen_id
+        )
+        context["puede_confirmar_recepcion"] = traslado.pendiente_recepcion and (
+            usuario_es_nacional(user) or user.iglesia_id == traslado.iglesia_destino_id
+        )
+        context["puede_revisar_integracion"] = traslado.recepcion_confirmada and (
+            usuario_es_nacional(user) or user.iglesia_id == traslado.iglesia_destino_id
         )
         context["puede_gestionar_documentos"] = context["puede_responder"] or context["puede_anular"]
         context["documentos"] = documentos_traslado(traslado)
@@ -194,6 +232,218 @@ class RechazarTrasladoView(ResponderTrasladoView):
 class AnularTrasladoView(ResponderTrasladoView):
     accion = "anular"
     titulo = "Anular traslado"
+
+
+class ConfirmarRecepcionTrasladoView(TrasladoQuerysetMixin, PermisoModuloMixin, FormView):
+    template_name = "traslados/traslado_recepcion_form.html"
+    form_class = ConfirmarRecepcionTrasladoForm
+    modulo_permiso = MODULO_TRASLADOS
+    accion_permiso = ACCION_GESTIONAR
+
+    def get_object(self):
+        if not hasattr(self, "object"):
+            self.object = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        return self.object
+
+    def validar_alcance_accion(self, traslado):
+        user = self.request.user
+        if not traslado.pendiente_recepcion:
+            raise PermissionDenied
+        if usuario_es_nacional(user):
+            return
+        if user.iglesia_id != traslado.iglesia_destino_id:
+            raise PermissionDenied
+
+    def dispatch(self, request, *args, **kwargs):
+        self.validar_alcance_accion(self.get_object())
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["traslado"] = self.get_object()
+        return kwargs
+
+    def form_valid(self, form):
+        traslado = self.get_object()
+        self.validar_alcance_accion(traslado)
+        confirmar_recepcion_traslado(
+            traslado,
+            self.request.user,
+            form.cleaned_data["observacion_recepcion"],
+        )
+        messages.success(self.request, "Recepcion pastoral confirmada.")
+        return redirect("traslados:detail", pk=traslado.pk)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["traslado"] = self.get_object()
+        return context
+
+
+class RevisarIntegracionDestinoView(TrasladoQuerysetMixin, PermisoModuloMixin, FormView):
+    template_name = "traslados/traslado_integracion_form.html"
+    form_class = RevisionIntegracionDestinoForm
+    modulo_permiso = MODULO_TRASLADOS
+    accion_permiso = ACCION_GESTIONAR
+    tipo = ""
+    titulo = ""
+
+    def get_object(self):
+        if not hasattr(self, "object"):
+            self.object = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        return self.object
+
+    def revision_pendiente(self, traslado):
+        if self.tipo == "familia":
+            return traslado.integracion_familiar_pendiente
+        if self.tipo == "escuela":
+            return traslado.revision_escuela_dominical_pendiente
+        return False
+
+    def validar_alcance_accion(self, traslado):
+        user = self.request.user
+        if not self.revision_pendiente(traslado):
+            raise PermissionDenied
+        if usuario_es_nacional(user):
+            return
+        if user.iglesia_id != traslado.iglesia_destino_id:
+            raise PermissionDenied
+
+    def dispatch(self, request, *args, **kwargs):
+        self.validar_alcance_accion(self.get_object())
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["traslado"] = self.get_object()
+        kwargs["tipo"] = self.tipo
+        return kwargs
+
+    def form_valid(self, form):
+        traslado = self.get_object()
+        self.validar_alcance_accion(traslado)
+        confirmar_revision_integracion_destino(
+            traslado,
+            self.request.user,
+            self.tipo,
+            form.cleaned_data["observacion"],
+        )
+        messages.success(self.request, "Revision de integracion registrada.")
+        return redirect("traslados:detail", pk=traslado.pk)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["traslado"] = self.get_object()
+        context["tipo"] = self.tipo
+        context["titulo"] = self.titulo
+        return context
+
+
+class RevisarIntegracionFamiliarView(RevisarIntegracionDestinoView):
+    tipo = "familia"
+    titulo = "Revisar integracion familiar"
+
+
+class RevisarIntegracionEscuelaView(RevisarIntegracionDestinoView):
+    tipo = "escuela"
+    titulo = "Revisar Escuela Dominical"
+
+
+class VincularFamiliaDestinoView(TrasladoQuerysetMixin, PermisoModuloMixin, FormView):
+    template_name = "traslados/traslado_vincular_familia_form.html"
+    form_class = VincularFamiliaDestinoForm
+    modulo_permiso = MODULO_TRASLADOS
+    accion_permiso = ACCION_GESTIONAR
+
+    def get_object(self):
+        if not hasattr(self, "object"):
+            self.object = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        return self.object
+
+    def validar_alcance_accion(self, traslado):
+        user = self.request.user
+        if not traslado.integracion_familiar_pendiente:
+            raise PermissionDenied
+        if usuario_es_nacional(user):
+            return
+        if user.iglesia_id != traslado.iglesia_destino_id:
+            raise PermissionDenied
+
+    def dispatch(self, request, *args, **kwargs):
+        self.validar_alcance_accion(self.get_object())
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["traslado"] = self.get_object()
+        return kwargs
+
+    def form_valid(self, form):
+        traslado = self.get_object()
+        self.validar_alcance_accion(traslado)
+        vincular_familia_destino(
+            traslado,
+            self.request.user,
+            form.cleaned_data["familia"],
+            form.cleaned_data["relacion"],
+            form.cleaned_data["observacion"],
+        )
+        messages.success(self.request, "Miembro vinculado a familia en destino.")
+        return redirect("traslados:detail", pk=traslado.pk)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["traslado"] = self.get_object()
+        return context
+
+
+class MatricularEscuelaDestinoView(TrasladoQuerysetMixin, PermisoModuloMixin, FormView):
+    template_name = "traslados/traslado_matricular_escuela_form.html"
+    form_class = MatricularEscuelaDestinoForm
+    modulo_permiso = MODULO_TRASLADOS
+    accion_permiso = ACCION_GESTIONAR
+
+    def get_object(self):
+        if not hasattr(self, "object"):
+            self.object = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        return self.object
+
+    def validar_alcance_accion(self, traslado):
+        user = self.request.user
+        if not traslado.revision_escuela_dominical_pendiente:
+            raise PermissionDenied
+        if usuario_es_nacional(user):
+            return
+        if user.iglesia_id != traslado.iglesia_destino_id:
+            raise PermissionDenied
+
+    def dispatch(self, request, *args, **kwargs):
+        self.validar_alcance_accion(self.get_object())
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["traslado"] = self.get_object()
+        kwargs["fecha_inicial"] = timezone_now().date()
+        return kwargs
+
+    def form_valid(self, form):
+        traslado = self.get_object()
+        self.validar_alcance_accion(traslado)
+        matricular_escuela_destino(
+            traslado,
+            self.request.user,
+            form.cleaned_data["clase"],
+            form.cleaned_data["fecha_inscripcion"],
+            form.cleaned_data["observacion"],
+        )
+        messages.success(self.request, "Miembro matriculado en Escuela Dominical.")
+        return redirect("traslados:detail", pk=traslado.pk)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["traslado"] = self.get_object()
+        return context
 
 
 class AdjuntarDocumentoTrasladoView(TrasladoQuerysetMixin, PermisoModuloMixin, FormView):

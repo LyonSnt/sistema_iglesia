@@ -79,6 +79,117 @@ def aceptar_traslado(traslado, usuario, observacion=""):
     return traslado
 
 
+@transaction.atomic
+def vincular_familia_destino(traslado, usuario, familia, relacion, observacion=""):
+    traslado = TrasladoMiembro.objects.select_for_update().select_related(
+        "miembro",
+        "iglesia_destino",
+    ).get(pk=traslado.pk)
+    if not traslado.integracion_familiar_pendiente or familia.iglesia_id != traslado.iglesia_destino_id:
+        return traslado
+
+    vinculo, _ = MiembroFamilia.objects.get_or_create(
+        familia=familia,
+        miembro=traslado.miembro,
+        relacion=relacion,
+    )
+    if not vinculo.activo:
+        vinculo.activo = True
+        vinculo.save(update_fields=["activo", "actualizado_en"])
+
+    ahora = timezone.now()
+    traslado.familia_destino_revisada_por = usuario
+    traslado.familia_destino_revisada_en = ahora
+    traslado.observacion_familia_destino = observacion
+    traslado.save(
+        update_fields=[
+            "familia_destino_revisada_por",
+            "familia_destino_revisada_en",
+            "observacion_familia_destino",
+            "actualizado_en",
+        ]
+    )
+    _registrar_auditoria(
+        traslado=traslado,
+        usuario=usuario,
+        accion="VINCULAR_FAMILIA_DESTINO",
+        valor_anterior={"familia_destino_revisada_en": None},
+        valor_nuevo={
+            "miembro_id": traslado.miembro_id,
+            "familia_id": familia.pk,
+            "relacion": relacion,
+            "iglesia_destino_id": traslado.iglesia_destino_id,
+        },
+        iglesia=traslado.iglesia_destino,
+        motivo="Miembro vinculado a familia en destino desde traslado.",
+    )
+    return traslado
+
+
+@transaction.atomic
+def matricular_escuela_destino(traslado, usuario, clase, fecha_inscripcion, observacion=""):
+    traslado = TrasladoMiembro.objects.select_for_update().select_related(
+        "miembro",
+        "iglesia_destino",
+    ).get(pk=traslado.pk)
+    if not traslado.revision_escuela_dominical_pendiente or clase.iglesia_id != traslado.iglesia_destino_id:
+        return traslado
+
+    matricula, created = MatriculaEscuelaDominical.objects.get_or_create(
+        clase=clase,
+        alumno=traslado.miembro,
+        defaults={
+            "fecha_inscripcion": fecha_inscripcion,
+            "observacion": observacion,
+        },
+    )
+    if not created:
+        matricula.fecha_inscripcion = fecha_inscripcion
+        matricula.fecha_salida = None
+        matricula.estado = MatriculaEscuelaDominical.Estado.ACTIVA
+        matricula.observacion = observacion
+        matricula.activo = True
+        matricula.full_clean()
+        matricula.save(
+            update_fields=[
+                "fecha_inscripcion",
+                "fecha_salida",
+                "estado",
+                "observacion",
+                "activo",
+                "actualizado_en",
+            ]
+        )
+
+    ahora = timezone.now()
+    traslado.escuela_dominical_destino_revisada_por = usuario
+    traslado.escuela_dominical_destino_revisada_en = ahora
+    traslado.observacion_escuela_dominical_destino = observacion
+    traslado.save(
+        update_fields=[
+            "escuela_dominical_destino_revisada_por",
+            "escuela_dominical_destino_revisada_en",
+            "observacion_escuela_dominical_destino",
+            "actualizado_en",
+        ]
+    )
+    _registrar_auditoria(
+        traslado=traslado,
+        usuario=usuario,
+        accion="MATRICULAR_ESCUELA_DESTINO",
+        valor_anterior={"escuela_dominical_destino_revisada_en": None},
+        valor_nuevo={
+            "miembro_id": traslado.miembro_id,
+            "clase_id": clase.pk,
+            "fecha_inscripcion": fecha_inscripcion.isoformat(),
+            "iglesia_destino_id": traslado.iglesia_destino_id,
+        },
+        iglesia=traslado.iglesia_destino,
+        motivo="Miembro matriculado en Escuela Dominical desde traslado.",
+    )
+    return traslado
+
+
 def _cerrar_relaciones_origen(miembro, iglesia_origen_id, fecha_cierre):
     ahora = timezone.now()
     vinculos_familiares = MiembroFamilia.objects.filter(
@@ -202,5 +313,95 @@ def anular_traslado(traslado, usuario, observacion=""):
         valor_nuevo={"estado": TrasladoMiembro.Estado.ANULADO},
         iglesia=traslado.iglesia_origen,
         motivo="Traslado de miembro anulado por iglesia origen.",
+    )
+    return traslado
+
+
+@transaction.atomic
+def confirmar_recepcion_traslado(traslado, usuario, observacion_recepcion=""):
+    traslado = TrasladoMiembro.objects.select_for_update().select_related(
+        "miembro",
+        "iglesia_destino",
+    ).get(pk=traslado.pk)
+    if not traslado.pendiente_recepcion:
+        return traslado
+
+    ahora = timezone.now()
+    traslado.recepcion_confirmada_por = usuario
+    traslado.recepcion_confirmada_en = ahora
+    traslado.observacion_recepcion = observacion_recepcion
+    traslado.save(
+        update_fields=[
+            "recepcion_confirmada_por",
+            "recepcion_confirmada_en",
+            "observacion_recepcion",
+            "actualizado_en",
+        ]
+    )
+    _registrar_auditoria(
+        traslado=traslado,
+        usuario=usuario,
+        accion="CONFIRMAR_RECEPCION",
+        valor_anterior={"recepcion_confirmada_en": None},
+        valor_nuevo={
+            "miembro_id": traslado.miembro_id,
+            "iglesia_destino_id": traslado.iglesia_destino_id,
+            "recepcion_confirmada_en": ahora.isoformat(),
+        },
+        iglesia=traslado.iglesia_destino,
+        motivo="Recepcion pastoral confirmada por iglesia destino.",
+    )
+    return traslado
+
+
+@transaction.atomic
+def confirmar_revision_integracion_destino(traslado, usuario, tipo, observacion=""):
+    traslado = TrasladoMiembro.objects.select_for_update().select_related(
+        "miembro",
+        "iglesia_destino",
+    ).get(pk=traslado.pk)
+
+    ahora = timezone.now()
+    if tipo == "familia" and traslado.integracion_familiar_pendiente:
+        traslado.familia_destino_revisada_por = usuario
+        traslado.familia_destino_revisada_en = ahora
+        traslado.observacion_familia_destino = observacion
+        update_fields = [
+            "familia_destino_revisada_por",
+            "familia_destino_revisada_en",
+            "observacion_familia_destino",
+            "actualizado_en",
+        ]
+        accion = "REVISAR_INTEGRACION_FAMILIAR"
+        motivo = "Revision familiar en destino confirmada."
+    elif tipo == "escuela" and traslado.revision_escuela_dominical_pendiente:
+        traslado.escuela_dominical_destino_revisada_por = usuario
+        traslado.escuela_dominical_destino_revisada_en = ahora
+        traslado.observacion_escuela_dominical_destino = observacion
+        update_fields = [
+            "escuela_dominical_destino_revisada_por",
+            "escuela_dominical_destino_revisada_en",
+            "observacion_escuela_dominical_destino",
+            "actualizado_en",
+        ]
+        accion = "REVISAR_INTEGRACION_ESCUELA"
+        motivo = "Revision de Escuela Dominical en destino confirmada."
+    else:
+        return traslado
+
+    traslado.save(update_fields=update_fields)
+    _registrar_auditoria(
+        traslado=traslado,
+        usuario=usuario,
+        accion=accion,
+        valor_anterior={"revision_confirmada_en": None},
+        valor_nuevo={
+            "miembro_id": traslado.miembro_id,
+            "iglesia_destino_id": traslado.iglesia_destino_id,
+            "tipo": tipo,
+            "revision_confirmada_en": ahora.isoformat(),
+        },
+        iglesia=traslado.iglesia_destino,
+        motivo=motivo,
     )
     return traslado

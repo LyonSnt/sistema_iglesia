@@ -73,6 +73,10 @@ def emitir_certificado(resultado, usuario, fecha_emision=None):
 
     fecha_emision = fecha_emision or timezone.localdate()
     iglesia = resultado.proceso.iglesia
+    nombre_pastor = _firmante_vigente(iglesia, "Pastor", fecha_emision)
+    nombre_director = _firmante_vigente(
+        iglesia, "Director de Escuela Dominical", fecha_emision
+    )
     certificado = CertificadoEscuelaDominical(
         iglesia=iglesia,
         resultado_promocion=resultado,
@@ -85,10 +89,8 @@ def emitir_certificado(resultado, usuario, fecha_emision=None):
         ).strip(),
         nivel_cursado=resultado.matricula_origen.clase.nivel.nombre,
         periodo_lectivo=resultado.proceso.periodo_origen.nombre,
-        nombre_pastor=_firmante_vigente(iglesia, "Pastor", fecha_emision),
-        nombre_director=_firmante_vigente(
-            iglesia, "Director de Escuela Dominical", fecha_emision
-        ),
+        nombre_pastor=nombre_pastor,
+        nombre_director=nombre_director,
         emitido_por=usuario,
     )
     certificado.full_clean()

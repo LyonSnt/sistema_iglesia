@@ -13,6 +13,7 @@
         </p>
       </div>
       <div class="flex gap-2">
+        <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'aportes_nacionales:arrears-dashboard' %}">Tablero de morosidad</a>
         <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'aportes_nacionales:account' %}">Cuenta corriente</a>
         {% if puede_gestionar %}
           <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800" href="{% url 'aportes_nacionales:create' %}">Generar aporte</a>

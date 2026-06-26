@@ -250,6 +250,36 @@ class AsignacionCargoViewsTests(TestCase):
         self.assertEqual(usuario_asignado.rol, Usuario.Rol.SOLO_LECTURA)
         self.assertTrue(usuario_asignado.groups.filter(name=Usuario.Rol.SOLO_LECTURA).exists())
 
+    def test_editar_asignacion_funcional_finalizada_revoca_rol(self):
+        usuario_asignado = self.crear_usuario("pastor_editado", Usuario.Rol.PASTOR_FILIAL, self.filial)
+        Group.objects.get_or_create(name=Usuario.Rol.PASTOR_FILIAL)
+        usuario_asignado.groups.set([Group.objects.get(name=Usuario.Rol.PASTOR_FILIAL)])
+        asignacion = AsignacionCargo.objects.create(
+            iglesia=self.filial,
+            cargo=self.cargo_filial,
+            usuario=usuario_asignado,
+            fecha_inicio=date(2026, 1, 1),
+        )
+        usuario = self.crear_usuario("secretario_edita", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("cargos:update", args=[asignacion.pk]),
+            self.datos_asignacion(
+                miembro="",
+                usuario=usuario_asignado.pk,
+                fecha_inicio="2026-01-01",
+                fecha_fin="2026-06-01",
+                estado=AsignacionCargo.Estado.FINALIZADO,
+                activo="on",
+            ),
+        )
+
+        self.assertRedirects(response, reverse("cargos:list"))
+        usuario_asignado.refresh_from_db()
+        self.assertEqual(usuario_asignado.rol, Usuario.Rol.SOLO_LECTURA)
+        self.assertTrue(usuario_asignado.groups.filter(name=Usuario.Rol.SOLO_LECTURA).exists())
+
     def test_finalizar_un_cargo_funcional_conserva_otro_rol_vigente(self):
         cargo_encargado = Cargo.objects.create(nombre="Encargado", es_nacional=False)
         usuario_asignado = self.crear_usuario("autoridad_doble", Usuario.Rol.PASTOR_FILIAL, self.filial)

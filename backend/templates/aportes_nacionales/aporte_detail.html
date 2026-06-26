@@ -15,13 +15,22 @@
         {% if aporte.estado == "PAGADO" %}
           <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'aportes_nacionales:receipt-pdf' aporte.pk %}">Ver recibo</a>
         {% endif %}
+        {% if puede_ajustar %}
+          <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'aportes_nacionales:adjustment-create' aporte.pk %}">Registrar ajuste</a>
+        {% endif %}
         {% if puede_registrar_pago and aporte.estado == "PENDIENTE" %}
           <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800" href="{% url 'aportes_nacionales:payment' aporte.pk %}">Registrar pago</a>
+        {% endif %}
+        {% if puede_acordar %}
+          <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'aportes_nacionales:agreement-create' aporte.pk %}">Registrar acuerdo</a>
+        {% endif %}
+        {% if puede_anular %}
+          <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'aportes_nacionales:annul' aporte.pk %}">Anular</a>
         {% endif %}
       </div>
     </div>
 
-    <div class="grid gap-4 md:grid-cols-4">
+    <div class="grid gap-4 md:grid-cols-5">
       <div class="rounded border border-slate-200 bg-white p-5">
         <h2 class="font-semibold text-slate-950">Base</h2>
         <p class="mt-3 text-sm text-slate-700">$ {{ aporte.monto_base|floatformat:2 }}</p>
@@ -35,8 +44,14 @@
         <p class="mt-3 text-sm text-slate-700">$ {{ aporte.monto_aporte|floatformat:2 }}</p>
       </div>
       <div class="rounded border border-slate-200 bg-white p-5">
+        <h2 class="font-semibold text-slate-950">Saldo</h2>
+        <p class="mt-3 text-sm text-slate-700">$ {{ saldo_pendiente|floatformat:2 }}</p>
+      </div>
+      <div class="rounded border border-slate-200 bg-white p-5">
         <h2 class="font-semibold text-slate-950">Estado</h2>
-        <p class="mt-3 text-sm text-slate-700">{{ aporte.get_estado_display }}</p>
+        <p class="mt-3 text-sm text-slate-700">
+          {{ aporte.get_estado_display }}{% if esta_vencido %} · Vencido{% endif %}
+        </p>
       </div>
     </div>
 
@@ -46,10 +61,102 @@
         <div><dt class="text-slate-500">Generado por</dt><dd>{{ aporte.generado_por }}</dd></div>
         <div><dt class="text-slate-500">Cierre origen</dt><dd>{{ aporte.cierre.anio }}-{{ aporte.cierre.mes|stringformat:"02d" }}</dd></div>
         <div><dt class="text-slate-500">Recibo</dt><dd>{{ aporte.numero_recibo|default:"Pendiente" }}</dd></div>
+        <div><dt class="text-slate-500">Vencimiento</dt><dd>{{ aporte.fecha_vencimiento|date:"Y-m-d"|default:"Sin vencimiento" }}</dd></div>
         <div><dt class="text-slate-500">Fecha de pago</dt><dd>{{ aporte.fecha_pago|date:"Y-m-d"|default:"Pendiente" }}</dd></div>
         <div><dt class="text-slate-500">Referencia</dt><dd>{{ aporte.referencia_pago|default:"Pendiente" }}</dd></div>
+        {% if aporte.estado == "ANULADO" %}
+          <div><dt class="text-slate-500">Anulado por</dt><dd>{{ aporte.anulado_por|default:"-" }}</dd></div>
+          <div><dt class="text-slate-500">Anulado en</dt><dd>{{ aporte.anulado_en|date:"Y-m-d H:i"|default:"-" }}</dd></div>
+          <div><dt class="text-slate-500">Motivo de anulacion</dt><dd>{{ aporte.motivo_anulacion|default:"-" }}</dd></div>
+        {% endif %}
         <div><dt class="text-slate-500">Observacion</dt><dd>{{ aporte.observacion|default:"Sin observacion" }}</dd></div>
       </dl>
     </div>
+
+    {% if pagos %}
+      <div class="overflow-hidden rounded border border-slate-200 bg-white">
+        <div class="border-b border-slate-200 px-5 py-4">
+          <h2 class="font-semibold text-slate-950">Pagos</h2>
+        </div>
+        <table class="min-w-full divide-y divide-slate-200 text-sm">
+          <thead class="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <tr>
+              <th class="px-4 py-3">Fecha</th>
+              <th class="px-4 py-3">Monto</th>
+              <th class="px-4 py-3">Referencia</th>
+              <th class="px-4 py-3">Registrado por</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for pago in pagos %}
+              <tr>
+                <td class="px-4 py-3 text-slate-700">{{ pago.fecha_pago|date:"Y-m-d" }}</td>
+                <td class="px-4 py-3 text-slate-700">$ {{ pago.monto|floatformat:2 }}</td>
+                <td class="px-4 py-3 text-slate-700">{{ pago.referencia_pago }}</td>
+                <td class="px-4 py-3 text-slate-700">{{ pago.registrado_por }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+
+    {% if acuerdos %}
+      <div class="overflow-hidden rounded border border-slate-200 bg-white">
+        <div class="border-b border-slate-200 px-5 py-4">
+          <h2 class="font-semibold text-slate-950">Acuerdos de pago</h2>
+        </div>
+        <table class="min-w-full divide-y divide-slate-200 text-sm">
+          <thead class="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <tr>
+              <th class="px-4 py-3">Compromiso</th>
+              <th class="px-4 py-3">Monto</th>
+              <th class="px-4 py-3">Estado</th>
+              <th class="px-4 py-3">Registrado por</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for acuerdo in acuerdos %}
+              <tr>
+                <td class="px-4 py-3 text-slate-700">{{ acuerdo.fecha_compromiso|date:"Y-m-d" }}</td>
+                <td class="px-4 py-3 text-slate-700">$ {{ acuerdo.monto_comprometido|floatformat:2 }}</td>
+                <td class="px-4 py-3 text-slate-700">{{ acuerdo.get_estado_display }}</td>
+                <td class="px-4 py-3 text-slate-700">{{ acuerdo.registrado_por }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+
+    {% if ajustes %}
+      <div class="overflow-hidden rounded border border-slate-200 bg-white">
+        <div class="border-b border-slate-200 px-5 py-4">
+          <h2 class="font-semibold text-slate-950">Ajustes</h2>
+        </div>
+        <table class="min-w-full divide-y divide-slate-200 text-sm">
+          <thead class="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <tr>
+              <th class="px-4 py-3">Fecha</th>
+              <th class="px-4 py-3">Tipo</th>
+              <th class="px-4 py-3">Monto</th>
+              <th class="px-4 py-3">Motivo</th>
+              <th class="px-4 py-3">Registrado por</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for ajuste in ajustes %}
+              <tr>
+                <td class="px-4 py-3 text-slate-700">{{ ajuste.creado_en|date:"Y-m-d H:i" }}</td>
+                <td class="px-4 py-3 text-slate-700">{{ ajuste.get_tipo_display }}</td>
+                <td class="px-4 py-3 text-slate-700">$ {{ ajuste.monto|floatformat:2 }}</td>
+                <td class="px-4 py-3 text-slate-700">{{ ajuste.motivo }}</td>
+                <td class="px-4 py-3 text-slate-700">{{ ajuste.registrado_por }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
   </section>
 {% endblock %}

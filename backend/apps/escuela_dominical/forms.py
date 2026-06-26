@@ -147,7 +147,17 @@ class MatriculaEscuelaDominicalForm(FormularioEscuelaMixin, forms.ModelForm):
         alumnos = Miembro.objects.filter(activo=True)
         if clase is not None:
             alumnos_matriculados = clase.matriculas.exclude(pk=self.instance.pk).values("alumno_id")
-            alumnos = alumnos.filter(iglesia=clase.iglesia).exclude(pk__in=alumnos_matriculados)
+            alumnos_activos_periodo = MatriculaEscuelaDominical.objects.filter(
+                clase__iglesia=clase.iglesia,
+                clase__periodo=clase.periodo,
+                estado=MatriculaEscuelaDominical.Estado.ACTIVA,
+                activo=True,
+            ).exclude(pk=self.instance.pk).values("alumno_id")
+            alumnos = (
+                alumnos.filter(iglesia=clase.iglesia)
+                .exclude(pk__in=alumnos_matriculados)
+                .exclude(pk__in=alumnos_activos_periodo)
+            )
         self.fields["alumno"].queryset = alumnos.order_by("apellidos", "nombres")
         self.aplicar_estilos()
 
@@ -156,6 +166,16 @@ class MatriculaEscuelaDominicalForm(FormularioEscuelaMixin, forms.ModelForm):
         alumno = cleaned_data.get("alumno")
         if self.clase and alumno and alumno.iglesia_id != self.clase.iglesia_id:
             raise ValidationError("El alumno debe pertenecer a la misma iglesia de la clase.")
+        if self.clase and alumno:
+            ya_matriculado = MatriculaEscuelaDominical.objects.filter(
+                alumno=alumno,
+                clase__iglesia=self.clase.iglesia,
+                clase__periodo=self.clase.periodo,
+                estado=MatriculaEscuelaDominical.Estado.ACTIVA,
+                activo=True,
+            ).exclude(pk=self.instance.pk)
+            if ya_matriculado.exists():
+                raise ValidationError("El alumno ya tiene una matricula activa en este periodo.")
         if (
             self.clase
             and not self.instance.pk

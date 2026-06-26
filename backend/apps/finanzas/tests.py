@@ -415,6 +415,41 @@ class FinanzasLocalesTests(TestCase):
         cierre.refresh_from_db()
         self.assertEqual(cierre.estado, CierreMensualFinanciero.Estado.CERRADO)
 
+    def test_anula_cierre_si_aporte_nacional_esta_anulado(self):
+        usuario = self.crear_usuario("tesorero_aporte_anulado", Usuario.Rol.TESORERO_FILIAL, self.filial)
+        cierre = CierreMensualFinanciero.objects.create(
+            iglesia=self.filial,
+            anio=2026,
+            mes=6,
+            total_ingresos=Decimal("100.00"),
+            total_egresos=Decimal("0.00"),
+            saldo=Decimal("100.00"),
+            cerrado_por=usuario,
+        )
+        AporteNacional.objects.create(
+            iglesia=self.filial,
+            cierre=cierre,
+            anio=2026,
+            mes=6,
+            porcentaje=Decimal("10.00"),
+            monto_base=Decimal("100.00"),
+            monto_aporte=Decimal("10.00"),
+            estado=AporteNacional.Estado.ANULADO,
+            motivo_anulacion="Correccion autorizada",
+            generado_por=usuario,
+        )
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("finanzas:cierre-annul", args=[cierre.pk]),
+            {"motivo_anulacion": "Corregir despues de anular aporte"},
+        )
+
+        self.assertRedirects(response, reverse("finanzas:cierre-list"))
+        cierre.refresh_from_db()
+        self.assertEqual(cierre.estado, CierreMensualFinanciero.Estado.ANULADO)
+        self.assertIn("Corregir despues de anular aporte", cierre.observacion)
+
     def test_adjunta_documento_a_movimiento_financiero(self):
         movimiento = self.crear_movimiento()
         usuario = self.crear_usuario("tesorero_doc", Usuario.Rol.TESORERO_FILIAL, self.filial)

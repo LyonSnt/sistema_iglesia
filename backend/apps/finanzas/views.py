@@ -9,6 +9,7 @@ from apps.core.iglesias import filtrar_queryset_por_iglesia
 from apps.core.permisos import ACCION_GESTIONAR, ACCION_VER, MODULO_FINANZAS, PermisoModuloMixin, usuario_puede
 from apps.documentos.forms import AnularDocumentoAdjuntoForm, DocumentoAdjuntoForm
 from apps.documentos.models import DocumentoAdjunto
+from apps.aportes_nacionales.models import AporteNacional
 
 from .forms import (
     AnularCierreMensualForm,
@@ -275,7 +276,8 @@ class AnularCierreMensualView(CierreQuerysetMixin, PermisoModuloMixin, FormView)
 
     def dispatch(self, request, *args, **kwargs):
         cierre = self.get_object()
-        if hasattr(cierre, "aporte_nacional"):
+        aporte = getattr(cierre, "aporte_nacional", None)
+        if aporte is not None and aporte.estado != AporteNacional.Estado.ANULADO:
             return redirect("finanzas:cierre-list")
         return super().dispatch(request, *args, **kwargs)
 

@@ -37,6 +37,14 @@ def finalizar_acceso_por_asignacion(asignacion):
         return
     if usuario.es_usuario_nacional or usuario.is_superuser or usuario.rol != rol_finalizado:
         return
+    recalcular_acceso_por_usuario(usuario)
+
+
+def recalcular_acceso_por_usuario(usuario):
+    if usuario is None:
+        return
+    if usuario.es_usuario_nacional or usuario.is_superuser:
+        return
     actualizar_rol_y_grupo(usuario, rol_vigente_para_usuario(usuario))
 
 
