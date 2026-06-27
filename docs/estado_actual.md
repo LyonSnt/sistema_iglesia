@@ -566,7 +566,8 @@ Siguiente bloque recomendado:
 
 1. Cerrar ciclos administrativos ya iniciados antes de crear modulos grandes
    nuevos:
-   - inventario fisico, actas y aprobaciones de baja.
+   - inventario fisico, actas y aprobaciones de baja, segun la hoja funcional
+     de `docs/inventario.md`.
 2. Reforzar controles preventivos:
    - busqueda de duplicados;
    - motivos obligatorios para cambios sensibles;
@@ -652,5 +653,6 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml exec web python m
 - [Analisis funcional](analisis_funcional.md)
 - [Estrategia general de reportes](reportes.md)
 - [Documentos adjuntos](documentos_adjuntos.md)
+- [Inventario fisico, actas y aprobaciones](inventario.md)
 - [HTMX](htmx.md)
 - [Tailwind CSS](tailwind.md)

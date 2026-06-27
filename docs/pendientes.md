@@ -73,8 +73,9 @@
   logotipo institucional, e implementar otros tipos documentales.
 - Inventario: [x] activos; [x] historial de ubicacion, responsable, reparacion
   y baja; [x] documentos adjuntos; [x] reportes; pendiente inventario fisico
-  periodico, actas de entrega/devolucion, aprobaciones de baja, perdida, robo,
-  venta, garantias y mantenimiento preventivo.
+  periodico, actas de entrega/devolucion y aprobaciones de baja segun
+  `docs/inventario.md`; quedan como crecimiento posterior perdida, robo, venta,
+  garantias y mantenimiento preventivo avanzado.
 - Documentos adjuntos: [x] base reutilizable; [x] integracion en inventario,
   finanzas, traslados y cargos; [x] clasificacion de tipos por modulo;
   pendiente vigencia documental, versionamiento, sensibilidad, vista previa y

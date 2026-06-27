@@ -857,12 +857,17 @@ Automatizaciones recomendadas:
 Sentido funcional: alto. Activos por iglesia, codigo unico, responsable,
 ubicacion, movimientos y baja logica cubren el control basico.
 
+Estado documental: el siguiente bloque esta definido en `docs/inventario.md`,
+con alcance para inventario fisico periodico, actas de entrega/devolucion y
+aprobaciones de baja.
+
 Procesos faltantes:
 
 - inventario fisico periodico;
 - acta de entrega y devolucion;
-- mantenimiento preventivo;
-- tratamiento de perdida, robo o venta.
+- aprobaciones de baja;
+- mantenimiento preventivo avanzado;
+- tratamiento completo de perdida, robo o venta.
 
 Casos no contemplados:
 
