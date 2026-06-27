@@ -15,16 +15,19 @@ from apps.documentos.models import DocumentoAdjunto
 
 from .forms import (
     ConfirmarRecepcionTrasladoForm,
+    CompletarTareaPastoralTrasladoForm,
     MatricularEscuelaDestinoForm,
     ResponderTrasladoForm,
     RevisionIntegracionDestinoForm,
+    TareaPastoralTrasladoForm,
     TrasladoMiembroForm,
     VincularFamiliaDestinoForm,
 )
-from .models import TrasladoMiembro
+from .models import TareaPastoralTraslado, TrasladoMiembro
 from .servicios import (
     aceptar_traslado,
     anular_traslado,
+    completar_tarea_pastoral_traslado,
     confirmar_recepcion_traslado,
     confirmar_revision_integracion_destino,
     matricular_escuela_destino,
@@ -125,6 +128,12 @@ class TrasladoDetailView(TrasladoQuerysetMixin, PermisoModuloMixin, DetailView):
         )
         context["puede_gestionar_documentos"] = context["puede_responder"] or context["puede_anular"]
         context["documentos"] = documentos_traslado(traslado)
+        context["integrantes_familiares"] = traslado.integrantes_familiares.select_related("miembro")
+        context["tareas_pastorales"] = traslado.tareas_pastorales.select_related("creada_por", "completada_por")
+        context["tarea_form"] = TareaPastoralTrasladoForm(traslado=traslado, user=user)
+        context["puede_gestionar_tareas"] = traslado.recepcion_confirmada and (
+            usuario_es_nacional(user) or user.iglesia_id == traslado.iglesia_destino_id
+        )
         context["documento_create_url"] = reverse("traslados:document-create", args=[traslado.pk])
         context["documento_download_name"] = "traslados:document-download"
         context["documento_deactivate_name"] = "traslados:document-deactivate"
@@ -443,6 +452,109 @@ class MatricularEscuelaDestinoView(TrasladoQuerysetMixin, PermisoModuloMixin, Fo
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["traslado"] = self.get_object()
+        return context
+
+
+class CrearTareaPastoralTrasladoView(TrasladoQuerysetMixin, PermisoModuloMixin, FormView):
+    template_name = "traslados/tarea_pastoral_form.html"
+    form_class = TareaPastoralTrasladoForm
+    modulo_permiso = MODULO_TRASLADOS
+    accion_permiso = ACCION_GESTIONAR
+
+    def get_object(self):
+        if not hasattr(self, "object"):
+            self.object = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        return self.object
+
+    def validar_alcance_accion(self, traslado):
+        user = self.request.user
+        if not traslado.recepcion_confirmada:
+            raise PermissionDenied
+        if usuario_es_nacional(user):
+            return
+        if user.iglesia_id != traslado.iglesia_destino_id:
+            raise PermissionDenied
+
+    def dispatch(self, request, *args, **kwargs):
+        self.validar_alcance_accion(self.get_object())
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["traslado"] = self.get_object()
+        kwargs["user"] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        traslado = self.get_object()
+        self.validar_alcance_accion(traslado)
+        form.save()
+        RegistroAuditoria.objects.create(
+            usuario=self.request.user,
+            accion="CREAR_TAREA_PASTORAL",
+            modulo="traslados",
+            registro_afectado=f"traslados.TrasladoMiembro:{traslado.pk}",
+            valor_nuevo={"descripcion": form.cleaned_data["descripcion"]},
+            iglesia=traslado.iglesia_destino,
+            motivo="Tarea pastoral posterior a traslado creada.",
+        )
+        messages.success(self.request, "Tarea pastoral creada.")
+        return redirect("traslados:detail", pk=traslado.pk)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["traslado"] = self.get_object()
+        return context
+
+
+class CompletarTareaPastoralTrasladoView(TrasladoQuerysetMixin, PermisoModuloMixin, FormView):
+    template_name = "traslados/tarea_pastoral_completar_form.html"
+    form_class = CompletarTareaPastoralTrasladoForm
+    modulo_permiso = MODULO_TRASLADOS
+    accion_permiso = ACCION_GESTIONAR
+
+    def get_object(self):
+        if not hasattr(self, "object"):
+            self.object = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        return self.object
+
+    def get_tarea(self):
+        if not hasattr(self, "tarea"):
+            self.tarea = get_object_or_404(
+                TareaPastoralTraslado.objects.filter(traslado=self.get_object()),
+                pk=self.kwargs["tarea_pk"],
+            )
+        return self.tarea
+
+    def validar_alcance_accion(self, traslado):
+        user = self.request.user
+        tarea = self.get_tarea()
+        if not traslado.recepcion_confirmada or tarea.estado != TareaPastoralTraslado.Estado.PENDIENTE:
+            raise PermissionDenied
+        if usuario_es_nacional(user):
+            return
+        if user.iglesia_id != traslado.iglesia_destino_id:
+            raise PermissionDenied
+
+    def dispatch(self, request, *args, **kwargs):
+        self.validar_alcance_accion(self.get_object())
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        traslado = self.get_object()
+        self.validar_alcance_accion(traslado)
+        completar_tarea_pastoral_traslado(
+            self.get_tarea(),
+            self.request.user,
+            form.cleaned_data["observacion"],
+        )
+        messages.success(self.request, "Tarea pastoral completada.")
+        return redirect("traslados:detail", pk=traslado.pk)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["traslado"] = self.get_object()
+        context["tarea"] = self.get_tarea()
         return context
 
 

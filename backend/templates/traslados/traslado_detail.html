@@ -30,6 +30,24 @@
                         </dd>
                     </div>
                     <div>
+                        <dt class="font-medium text-slate-500">Alcance</dt>
+                        <dd class="text-slate-900">
+                            {% if traslado.es_familiar %}
+                                Familiar
+                            {% else %}
+                                Individual
+                            {% endif %}
+                        </dd>
+                    </div>
+                    {% if traslado.familia_origen %}
+                        <div>
+                            <dt class="font-medium text-slate-500">Familia origen</dt>
+                            <dd class="text-slate-900">
+                                {{ traslado.familia_origen }}
+                            </dd>
+                        </div>
+                    {% endif %}
+                    <div>
                         <dt class="font-medium text-slate-500">Solicitado por</dt>
                         <dd class="text-slate-900">
                             {{ traslado.solicitado_por }}
@@ -67,6 +85,35 @@
                 </dl>
             </article>
         </div>
+        {% if traslado.es_familiar %}
+            <article class="rounded border border-slate-200 bg-white p-5">
+                <h2 class="font-semibold text-slate-950">Integrantes adicionales</h2>
+                <div class="mt-4 overflow-hidden rounded border border-slate-200">
+                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead class="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                            <tr>
+                                <th class="px-4 py-3">Miembro</th>
+                                <th class="px-4 py-3">Relacion</th>
+                                <th class="px-4 py-3">Iglesia actual</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for integrante in integrantes_familiares %}
+                                <tr>
+                                    <td class="px-4 py-3 font-medium text-slate-950">{{ integrante.miembro }}</td>
+                                    <td class="px-4 py-3 text-slate-700">{{ integrante.relacion|default:"-" }}</td>
+                                    <td class="px-4 py-3 text-slate-700">{{ integrante.miembro.iglesia.codigo }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td class="px-4 py-6 text-center text-sm text-slate-500" colspan="3">No hay integrantes adicionales registrados.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        {% endif %}
         {% if traslado.estado == traslado.Estado.ACEPTADO %}
             <article class="rounded border border-slate-200 bg-white p-5">
                 <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -165,6 +212,42 @@
                                    href="{% url 'escuela_dominical:list' %}">Ver clases</a>
                             {% endif %}
                         </div>
+                    </div>
+                </article>
+                <article class="rounded border border-slate-200 bg-white p-5">
+                    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div>
+                            <h2 class="font-semibold text-slate-950">Tareas pastorales</h2>
+                            <p class="mt-1 text-sm text-slate-600">Seguimiento posterior a la recepcion e integracion en destino.</p>
+                        </div>
+                        {% if puede_gestionar_tareas %}
+                            <a class="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                               href="{% url 'traslados:tarea-create' traslado.pk %}">Agregar tarea</a>
+                        {% endif %}
+                    </div>
+                    <div class="mt-4 divide-y divide-slate-100 rounded border border-slate-200">
+                        {% for tarea in tareas_pastorales %}
+                            <div class="flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-950">{{ tarea.descripcion }}</p>
+                                    <p class="mt-1 text-sm text-slate-600">
+                                        {{ tarea.get_estado_display }}
+                                        {% if tarea.completada_en %}
+                                            por {{ tarea.completada_por }} el {{ tarea.completada_en|date:"Y-m-d H:i" }}
+                                        {% endif %}
+                                    </p>
+                                    {% if tarea.observacion %}
+                                        <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">{{ tarea.observacion }}</p>
+                                    {% endif %}
+                                </div>
+                                {% if puede_gestionar_tareas and tarea.estado == "PENDIENTE" %}
+                                    <a class="rounded border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                       href="{% url 'traslados:tarea-completar' traslado.pk tarea.pk %}">Completar</a>
+                                {% endif %}
+                            </div>
+                        {% empty %}
+                            <p class="p-4 text-sm text-slate-500">No hay tareas pastorales registradas.</p>
+                        {% endfor %}
                     </div>
                 </article>
             {% endif %}

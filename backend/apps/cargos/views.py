@@ -1,3 +1,4 @@
+from django.contrib import messages
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 from django.http import FileResponse
@@ -10,12 +11,16 @@ from apps.core.permisos import ACCION_GESTIONAR, ACCION_VER, MODULO_CARGOS, Perm
 from apps.documentos.forms import AnularDocumentoAdjuntoForm, DocumentoAdjuntoForm
 from apps.documentos.models import DocumentoAdjunto
 
-from .forms import AsignacionCargoForm, FinalizarAsignacionCargoForm
+from .forms import AccionFormalCargoForm, AsignacionCargoForm, FinalizarAsignacionCargoForm, ReemplazarAsignacionCargoForm
 from .models import AsignacionCargo
 from .servicios import (
-    recalcular_acceso_por_usuario,
-    rol_para_nombre_cargo,
     finalizar_acceso_por_asignacion,
+    recalcular_acceso_por_usuario,
+    registrar_nombramiento,
+    registrar_posesion,
+    registrar_reemplazo,
+    registrar_renuncia,
+    rol_para_nombre_cargo,
     sincronizar_acceso_por_asignacion,
 )
 
@@ -73,6 +78,10 @@ class AsignacionCargoDetailView(AsignacionCargoQuerysetMixin, PermisoModuloMixin
         context = super().get_context_data(**kwargs)
         context["puede_gestionar"] = usuario_puede(self.request.user, MODULO_CARGOS, ACCION_GESTIONAR)
         context["documentos"] = documentos_asignacion(self.object)
+        context["historial_formal"] = self.object.historial_formal.select_related(
+            "registrado_por",
+            "asignacion_relacionada",
+        )
         context["puede_gestionar_documentos"] = context["puede_gestionar"]
         context["documento_create_url"] = reverse("cargos:document-create", args=[self.object.pk])
         context["documento_download_name"] = "cargos:document-download"
@@ -159,6 +168,89 @@ class FinalizarAsignacionCargoView(AsignacionCargoQuerysetMixin, PermisoModuloMi
         context = super().get_context_data(**kwargs)
         context["asignacion"] = self.get_object()
         return context
+
+
+class AccionFormalCargoView(AsignacionCargoQuerysetMixin, PermisoModuloMixin, FormView):
+    template_name = "cargos/asignacion_accion_formal_form.html"
+    form_class = AccionFormalCargoForm
+    modulo_permiso = MODULO_CARGOS
+    accion_permiso = ACCION_GESTIONAR
+    titulo = ""
+    descripcion = ""
+    accion = ""
+
+    def get_object(self):
+        if not hasattr(self, "object"):
+            self.object = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        return self.object
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["asignacion"] = self.get_object()
+        return kwargs
+
+    def ejecutar_accion(self, asignacion, form):
+        fecha = form.cleaned_data["fecha"]
+        motivo = form.cleaned_data["motivo"]
+        if self.accion == "nombramiento":
+            return registrar_nombramiento(asignacion, self.request.user, fecha, motivo)
+        if self.accion == "posesion":
+            return registrar_posesion(asignacion, self.request.user, fecha, motivo)
+        if self.accion == "renuncia":
+            return registrar_renuncia(asignacion, self.request.user, fecha, motivo)
+        return None
+
+    def form_valid(self, form):
+        asignacion = self.get_object()
+        try:
+            self.ejecutar_accion(asignacion, form)
+        except ValueError as exc:
+            form.add_error(None, str(exc))
+            return self.form_invalid(form)
+        messages.success(self.request, "Accion formal registrada.")
+        return redirect("cargos:detail", pk=asignacion.pk)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["asignacion"] = self.get_object()
+        context["titulo"] = self.titulo
+        context["descripcion"] = self.descripcion
+        return context
+
+
+class RegistrarNombramientoCargoView(AccionFormalCargoView):
+    titulo = "Registrar nombramiento"
+    descripcion = "Registra el nombramiento formal y deja la asignacion en estado nombrado."
+    accion = "nombramiento"
+
+
+class RegistrarPosesionCargoView(AccionFormalCargoView):
+    titulo = "Registrar posesion"
+    descripcion = "Confirma la posesion formal y activa el acceso funcional cuando aplique."
+    accion = "posesion"
+
+
+class RegistrarRenunciaCargoView(AccionFormalCargoView):
+    titulo = "Registrar renuncia"
+    descripcion = "Finaliza la asignacion por renuncia y recalcula el acceso funcional cuando aplique."
+    accion = "renuncia"
+
+
+class RegistrarReemplazoCargoView(AccionFormalCargoView):
+    template_name = "cargos/asignacion_reemplazo_form.html"
+    form_class = ReemplazarAsignacionCargoForm
+    titulo = "Registrar reemplazo"
+    descripcion = "Finaliza la asignacion actual y posesiona una asignacion nombrada del mismo cargo."
+    accion = "reemplazo"
+
+    def ejecutar_accion(self, asignacion, form):
+        return registrar_reemplazo(
+            asignacion,
+            form.cleaned_data["nueva_asignacion"],
+            self.request.user,
+            form.cleaned_data["fecha"],
+            form.cleaned_data["motivo"],
+        )
 
 
 class AdjuntarDocumentoCargoView(AsignacionCargoQuerysetMixin, PermisoModuloMixin, FormView):

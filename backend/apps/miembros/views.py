@@ -8,15 +8,20 @@ from apps.core.permisos import ACCION_GESTIONAR, ACCION_VER, MODULO_MIEMBROS, Pe
 from apps.familias.models import Familia, Matrimonio, MiembroFamilia
 
 from .forms import (
+    AdmisionFormalForm,
     BautismoForm,
+    BajaVoluntariaForm,
     CrearFamiliaMiembroForm,
+    DisciplinaForm,
     FallecimientoForm,
     MatrimonioForm,
-    MembresiaForm,
     MiembroForm,
+    RestauracionForm,
+    SuspensionForm,
     VincularFamiliaMiembroForm,
 )
-from .models import Miembro
+from .models import HistorialPastoralMiembro, Miembro
+from .servicios import registrar_accion_pastoral
 
 
 class MiembroQuerysetMixin:
@@ -76,6 +81,7 @@ class MiembroDetailView(MiembroQuerysetMixin, PermisoModuloMixin, DetailView):
             Q(conyuge_1=self.object) | Q(conyuge_2=self.object),
             iglesia=self.object.iglesia,
         ).order_by("-fecha_matrimonio")
+        context["historial_pastoral"] = self.object.historial_pastoral.select_related("registrado_por")[:20]
         return context
 
 
@@ -114,6 +120,7 @@ class AccionPastoralView(MiembroQuerysetMixin, PermisoModuloMixin, FormView):
     campo_fecha = ""
     estado_resultante = None
     activo_resultante = None
+    tipo_historial = None
 
     def get_object(self):
         if not hasattr(self, "object"):
@@ -128,18 +135,13 @@ class AccionPastoralView(MiembroQuerysetMixin, PermisoModuloMixin, FormView):
 
     def form_valid(self, form):
         self.object = self.get_object()
-        update_fields = [self.campo_fecha]
-        setattr(self.object, self.campo_fecha, form.cleaned_data["fecha"])
-
-        if self.estado_resultante is not None:
-            self.object.estado = self.estado_resultante
-            update_fields.append("estado")
-
-        if self.activo_resultante is not None:
-            self.object.activo = self.activo_resultante
-            update_fields.append("activo")
-
-        self.object.save(update_fields=update_fields)
+        registrar_accion_pastoral(
+            self.object,
+            self.request.user,
+            self.tipo_historial,
+            form.cleaned_data["fecha"],
+            form.cleaned_data["motivo"],
+        )
         return super().form_valid(form)
 
     def get_success_url(self):
@@ -158,13 +160,15 @@ class RegistrarBautismoView(AccionPastoralView):
     titulo = "Registrar bautismo"
     descripcion = "Guarda la fecha de bautismo del miembro."
     campo_fecha = "fecha_bautismo"
+    tipo_historial = HistorialPastoralMiembro.Tipo.BAUTISMO
 
 
 class RegistrarMembresiaView(AccionPastoralView):
-    form_class = MembresiaForm
-    titulo = "Registrar membresia"
-    descripcion = "Guarda la fecha de membresia formal del miembro."
+    form_class = AdmisionFormalForm
+    titulo = "Registrar admision formal"
+    descripcion = "Guarda la fecha de membresia formal y marca al miembro como activo."
     campo_fecha = "fecha_membresia"
+    tipo_historial = HistorialPastoralMiembro.Tipo.ADMISION
 
 
 class RegistrarFallecimientoView(AccionPastoralView):
@@ -174,6 +178,35 @@ class RegistrarFallecimientoView(AccionPastoralView):
     campo_fecha = "fecha_fallecimiento"
     estado_resultante = Miembro.Estado.FALLECIDO
     activo_resultante = False
+    tipo_historial = HistorialPastoralMiembro.Tipo.FALLECIMIENTO
+
+
+class RegistrarBajaVoluntariaView(AccionPastoralView):
+    form_class = BajaVoluntariaForm
+    titulo = "Registrar baja voluntaria"
+    descripcion = "Marca al miembro como inactivo por baja voluntaria y conserva el historial pastoral."
+    tipo_historial = HistorialPastoralMiembro.Tipo.BAJA_VOLUNTARIA
+
+
+class RegistrarRestauracionView(AccionPastoralView):
+    form_class = RestauracionForm
+    titulo = "Registrar restauracion"
+    descripcion = "Restaura al miembro y lo marca nuevamente como activo."
+    tipo_historial = HistorialPastoralMiembro.Tipo.RESTAURACION
+
+
+class RegistrarDisciplinaView(AccionPastoralView):
+    form_class = DisciplinaForm
+    titulo = "Registrar disciplina"
+    descripcion = "Marca al miembro en disciplina pastoral con motivo obligatorio."
+    tipo_historial = HistorialPastoralMiembro.Tipo.DISCIPLINA
+
+
+class RegistrarSuspensionView(AccionPastoralView):
+    form_class = SuspensionForm
+    titulo = "Registrar suspension"
+    descripcion = "Marca al miembro como suspendido e inactivo con motivo obligatorio."
+    tipo_historial = HistorialPastoralMiembro.Tipo.SUSPENSION
 
 
 class RegistrarMatrimonioView(MiembroQuerysetMixin, PermisoModuloMixin, FormView):

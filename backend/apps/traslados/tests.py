@@ -18,7 +18,7 @@ from apps.iglesias.models import Iglesia
 from apps.miembros.models import Miembro
 from apps.ministerios.models import Ministerio, ParticipacionMinisterio
 from apps.parametros.models import Periodo
-from apps.traslados.models import TrasladoMiembro
+from apps.traslados.models import TareaPastoralTraslado, TrasladoFamiliarIntegrante, TrasladoMiembro
 from apps.usuarios.models import Usuario
 
 
@@ -180,6 +180,59 @@ class TrasladoMiembroTests(TestCase):
         self.assertFalse(self.vinculo_familiar.activo)
         self.assertTrue(RegistroAuditoria.objects.filter(modulo="traslados", accion="ACEPTAR").exists())
 
+    def test_destino_acepta_traslado_familiar_y_mueve_integrantes_adicionales(self):
+        hijo = Miembro.objects.create(
+            iglesia=self.origen,
+            nombres="Luis",
+            apellidos="Lopez",
+            cedula="0606060606",
+            sexo=Miembro.Sexo.MASCULINO,
+        )
+        vinculo_hijo = MiembroFamilia.objects.create(
+            familia=self.familia,
+            miembro=hijo,
+            relacion=MiembroFamilia.Relacion.HIJO,
+        )
+        usuario_origen = self.crear_usuario("secretario_familiar", Usuario.Rol.SECRETARIO_FILIAL, self.origen)
+        self.client.force_login(usuario_origen)
+
+        response = self.client.post(
+            reverse("traslados:create"),
+            {
+                "miembro": self.miembro.pk,
+                "iglesia_destino": self.destino.pk,
+                "es_familiar": "on",
+                "familia_origen": self.familia.pk,
+                "integrantes_familiares": [hijo.pk],
+                "motivo": "Traslado familiar por cambio de domicilio",
+            },
+        )
+
+        self.assertRedirects(response, reverse("traslados:list"))
+        traslado = TrasladoMiembro.objects.get(motivo="Traslado familiar por cambio de domicilio")
+        self.assertTrue(traslado.es_familiar)
+        self.assertEqual(traslado.familia_origen, self.familia)
+        integrante = TrasladoFamiliarIntegrante.objects.get(traslado=traslado)
+        self.assertEqual(integrante.miembro, hijo)
+        self.assertEqual(integrante.relacion, MiembroFamilia.Relacion.HIJO)
+
+        usuario_destino = self.crear_usuario("pastor_destino_familiar", Usuario.Rol.PASTOR_FILIAL, self.destino)
+        self.client.force_login(usuario_destino)
+        response = self.client.post(reverse("traslados:aceptar", args=[traslado.pk]), {"observacion": "Familia recibida"})
+
+        self.assertRedirects(response, reverse("traslados:detail", args=[traslado.pk]))
+        self.miembro.refresh_from_db()
+        hijo.refresh_from_db()
+        self.vinculo_familiar.refresh_from_db()
+        vinculo_hijo.refresh_from_db()
+        self.assertEqual(self.miembro.iglesia, self.destino)
+        self.assertEqual(hijo.iglesia, self.destino)
+        self.assertFalse(self.vinculo_familiar.activo)
+        self.assertFalse(vinculo_hijo.activo)
+        auditoria = RegistroAuditoria.objects.get(modulo="traslados", accion="ACEPTAR")
+        self.assertTrue(auditoria.valor_nuevo["traslado_familiar"])
+        self.assertEqual(len(auditoria.valor_nuevo["integrantes_familiares_movidos"]), 1)
+
     def test_aceptar_traslado_cierra_asignaciones_locales_de_origen(self):
         cargo = Cargo.objects.create(nombre="Diacono")
         asignacion = AsignacionCargo.objects.create(
@@ -318,6 +371,98 @@ class TrasladoMiembroTests(TestCase):
         self.assertIsNotNone(traslado.recepcion_confirmada_en)
         self.assertEqual(traslado.observacion_recepcion, "Visitado y presentado a la congregacion.")
         self.assertTrue(RegistroAuditoria.objects.filter(modulo="traslados", accion="CONFIRMAR_RECEPCION").exists())
+        self.assertEqual(traslado.tareas_pastorales.count(), 2)
+
+    def test_recepcion_de_traslado_familiar_crea_tarea_pastoral_familiar(self):
+        hijo = Miembro.objects.create(
+            iglesia=self.origen,
+            nombres="Mateo",
+            apellidos="Lopez",
+            cedula="0707070707",
+            sexo=Miembro.Sexo.MASCULINO,
+        )
+        MiembroFamilia.objects.create(
+            familia=self.familia,
+            miembro=hijo,
+            relacion=MiembroFamilia.Relacion.HIJO,
+        )
+        traslado = self.crear_traslado()
+        traslado.es_familiar = True
+        traslado.familia_origen = self.familia
+        traslado.save(update_fields=["es_familiar", "familia_origen"])
+        TrasladoFamiliarIntegrante.objects.create(
+            traslado=traslado,
+            miembro=hijo,
+            relacion=MiembroFamilia.Relacion.HIJO,
+        )
+        usuario_destino = self.crear_usuario("pastor_tareas_familia", Usuario.Rol.PASTOR_FILIAL, self.destino)
+        self.client.force_login(usuario_destino)
+        self.client.post(reverse("traslados:aceptar", args=[traslado.pk]), {"observacion": "Aceptado"})
+
+        response = self.client.post(
+            reverse("traslados:recepcion", args=[traslado.pk]),
+            {"observacion_recepcion": "Familia recibida"},
+        )
+
+        self.assertRedirects(response, reverse("traslados:detail", args=[traslado.pk]))
+        traslado.refresh_from_db()
+        self.assertEqual(traslado.tareas_pastorales.count(), 3)
+        self.assertTrue(
+            traslado.tareas_pastorales.filter(
+                descripcion="Revisar integracion pastoral de la familia trasladada."
+            ).exists()
+        )
+
+    def test_destino_crea_y_completa_tarea_pastoral_de_traslado(self):
+        traslado = self.crear_traslado()
+        usuario_destino = self.crear_usuario("pastor_tareas", Usuario.Rol.PASTOR_FILIAL, self.destino)
+        self.client.force_login(usuario_destino)
+        self.client.post(reverse("traslados:aceptar", args=[traslado.pk]), {"observacion": "Aceptado"})
+        self.client.post(reverse("traslados:recepcion", args=[traslado.pk]), {"observacion_recepcion": "Recibido"})
+
+        response = self.client.post(
+            reverse("traslados:tarea-create", args=[traslado.pk]),
+            {"descripcion": "Coordinar visita de seguimiento"},
+        )
+
+        self.assertRedirects(response, reverse("traslados:detail", args=[traslado.pk]))
+        tarea = TareaPastoralTraslado.objects.get(descripcion="Coordinar visita de seguimiento")
+        self.assertEqual(tarea.traslado, traslado)
+        self.assertEqual(tarea.creada_por, usuario_destino)
+        self.assertTrue(RegistroAuditoria.objects.filter(modulo="traslados", accion="CREAR_TAREA_PASTORAL").exists())
+
+        response = self.client.post(
+            reverse("traslados:tarea-completar", args=[traslado.pk, tarea.pk]),
+            {"observacion": "Visita realizada."},
+        )
+
+        self.assertRedirects(response, reverse("traslados:detail", args=[traslado.pk]))
+        tarea.refresh_from_db()
+        self.assertEqual(tarea.estado, TareaPastoralTraslado.Estado.COMPLETADA)
+        self.assertEqual(tarea.completada_por, usuario_destino)
+        self.assertEqual(tarea.observacion, "Visita realizada.")
+        self.assertTrue(
+            RegistroAuditoria.objects.filter(modulo="traslados", accion="COMPLETAR_TAREA_PASTORAL").exists()
+        )
+
+    def test_origen_no_completa_tarea_pastoral_en_destino(self):
+        traslado = self.crear_traslado()
+        usuario_destino = self.crear_usuario("pastor_destino_tarea", Usuario.Rol.PASTOR_FILIAL, self.destino)
+        self.client.force_login(usuario_destino)
+        self.client.post(reverse("traslados:aceptar", args=[traslado.pk]), {"observacion": "Aceptado"})
+        self.client.post(reverse("traslados:recepcion", args=[traslado.pk]), {"observacion_recepcion": "Recibido"})
+        tarea = traslado.tareas_pastorales.first()
+
+        usuario_origen = self.crear_usuario("pastor_origen_tarea", Usuario.Rol.PASTOR_FILIAL, self.origen)
+        self.client.force_login(usuario_origen)
+        response = self.client.post(
+            reverse("traslados:tarea-completar", args=[traslado.pk, tarea.pk]),
+            {"observacion": "No corresponde"},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        tarea.refresh_from_db()
+        self.assertEqual(tarea.estado, TareaPastoralTraslado.Estado.PENDIENTE)
 
     def test_no_confirma_recepcion_si_traslado_no_esta_aceptado(self):
         traslado = self.crear_traslado()

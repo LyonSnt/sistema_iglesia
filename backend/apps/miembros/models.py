@@ -18,6 +18,8 @@ class Miembro(TimeStampedModel, ActiveModel, IglesiaScopedModel):
     class Estado(models.TextChoices):
         ACTIVO = "ACTIVO", "Activo"
         INACTIVO = "INACTIVO", "Inactivo"
+        SUSPENDIDO = "SUSPENDIDO", "Suspendido"
+        DISCIPLINA = "DISCIPLINA", "En disciplina"
         TRASLADADO = "TRASLADADO", "Trasladado"
         FALLECIDO = "FALLECIDO", "Fallecido"
 
@@ -44,3 +46,37 @@ class Miembro(TimeStampedModel, ActiveModel, IglesiaScopedModel):
 
     def __str__(self):
         return f"{self.apellidos} {self.nombres}"
+
+
+class HistorialPastoralMiembro(TimeStampedModel):
+    class Tipo(models.TextChoices):
+        BAUTISMO = "BAUTISMO", "Bautismo"
+        ADMISION = "ADMISION", "Admision formal"
+        BAJA_VOLUNTARIA = "BAJA_VOLUNTARIA", "Baja voluntaria"
+        RESTAURACION = "RESTAURACION", "Restauracion"
+        DISCIPLINA = "DISCIPLINA", "Disciplina"
+        SUSPENSION = "SUSPENSION", "Suspension"
+        FALLECIMIENTO = "FALLECIMIENTO", "Fallecimiento"
+
+    miembro = models.ForeignKey(Miembro, on_delete=models.PROTECT, related_name="historial_pastoral")
+    tipo = models.CharField(max_length=30, choices=Tipo.choices)
+    fecha = models.DateField()
+    motivo = models.TextField()
+    registrado_por = models.ForeignKey(
+        "usuarios.Usuario",
+        on_delete=models.PROTECT,
+        related_name="historial_pastoral_registrado",
+    )
+    estado_anterior = models.CharField(max_length=20, blank=True)
+    estado_nuevo = models.CharField(max_length=20, blank=True)
+    activo_anterior = models.BooleanField(default=True)
+    activo_nuevo = models.BooleanField(default=True)
+    resumen_cierre = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-fecha", "-creado_en")
+        verbose_name = "historial pastoral de miembro"
+        verbose_name_plural = "historial pastoral de miembros"
+
+    def __str__(self):
+        return f"{self.miembro} - {self.get_tipo_display()}"

@@ -7,7 +7,7 @@ from apps.familias.models import Familia, MiembroFamilia
 from apps.iglesias.models import Iglesia
 from apps.miembros.models import Miembro
 
-from .models import TrasladoMiembro
+from .models import TareaPastoralTraslado, TrasladoFamiliarIntegrante, TrasladoMiembro
 
 
 FIELD_CLASS = (
@@ -17,11 +17,24 @@ FIELD_CLASS = (
 
 
 class TrasladoMiembroForm(forms.ModelForm):
+    integrantes_familiares = forms.ModelMultipleChoiceField(
+        label="Integrantes adicionales",
+        queryset=Miembro.objects.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text="Seleccione otros integrantes de la misma familia que se trasladaran junto al miembro principal.",
+    )
+
     class Meta:
         model = TrasladoMiembro
-        fields = ("miembro", "iglesia_destino", "motivo")
+        fields = ("miembro", "iglesia_destino", "es_familiar", "familia_origen", "integrantes_familiares", "motivo")
         widgets = {
+            "es_familiar": forms.CheckboxInput(),
             "motivo": forms.Textarea(attrs={"rows": 4}),
+        }
+        labels = {
+            "es_familiar": "Traslado familiar",
+            "familia_origen": "Familia de origen",
         }
 
     def __init__(self, *args, user=None, **kwargs):
@@ -37,6 +50,27 @@ class TrasladoMiembroForm(forms.ModelForm):
 
         self.fields["miembro"].queryset = miembros.order_by("apellidos", "nombres")
         self.fields["iglesia_destino"].queryset = iglesias_destino.order_by("nombre")
+        familias_origen = Familia.objects.filter(activo=True)
+        if user is not None and not usuario_es_nacional(user):
+            familias_origen = familias_origen.filter(iglesia=user.iglesia)
+        self.fields["familia_origen"].queryset = familias_origen.order_by("nombre")
+
+        miembro_id = self.data.get(self.add_prefix("miembro")) if self.is_bound else self.initial.get("miembro")
+        if miembro_id:
+            self.fields["familia_origen"].queryset = Familia.objects.filter(
+                integrantes__miembro_id=miembro_id,
+                integrantes__activo=True,
+                activo=True,
+            ).distinct().order_by("nombre")
+
+        familia_id = self.data.get(self.add_prefix("familia_origen")) if self.is_bound else self.initial.get("familia_origen")
+        if familia_id:
+            self.fields["integrantes_familiares"].queryset = Miembro.objects.filter(
+                familias__familia_id=familia_id,
+                familias__activo=True,
+                activo=True,
+                estado=Miembro.Estado.ACTIVO,
+            ).exclude(pk=miembro_id).distinct().order_by("apellidos", "nombres")
 
         for field in self.fields.values():
             if not isinstance(field.widget, forms.HiddenInput):
@@ -46,6 +80,9 @@ class TrasladoMiembroForm(forms.ModelForm):
         cleaned_data = super().clean()
         miembro = cleaned_data.get("miembro")
         iglesia_destino = cleaned_data.get("iglesia_destino")
+        es_familiar = cleaned_data.get("es_familiar")
+        familia_origen = cleaned_data.get("familia_origen")
+        integrantes_familiares = cleaned_data.get("integrantes_familiares")
 
         if self.user is not None and not usuario_es_nacional(self.user):
             if miembro is not None and miembro.iglesia_id != self.user.iglesia_id:
@@ -61,6 +98,41 @@ class TrasladoMiembroForm(forms.ModelForm):
             if existe_pendiente:
                 raise ValidationError("El miembro ya tiene un traslado pendiente.")
 
+        if es_familiar:
+            if familia_origen is None:
+                raise ValidationError("Seleccione la familia de origen para el traslado familiar.")
+            if miembro is not None:
+                if familia_origen.iglesia_id != miembro.iglesia_id:
+                    raise ValidationError("La familia de origen debe pertenecer a la iglesia del miembro.")
+                miembro_en_familia = MiembroFamilia.objects.filter(
+                    familia=familia_origen,
+                    miembro=miembro,
+                    activo=True,
+                ).exists()
+                if not miembro_en_familia:
+                    raise ValidationError("El miembro principal debe pertenecer activamente a la familia seleccionada.")
+            if not integrantes_familiares:
+                raise ValidationError("Seleccione al menos un integrante adicional para el traslado familiar.")
+            for integrante in integrantes_familiares:
+                if miembro is not None and integrante.pk == miembro.pk:
+                    raise ValidationError("El miembro principal no debe repetirse como integrante adicional.")
+                if iglesia_destino is not None and integrante.iglesia_id == iglesia_destino.id:
+                    raise ValidationError("Los integrantes adicionales ya no deben pertenecer a la iglesia destino.")
+                if miembro is not None and integrante.iglesia_id != miembro.iglesia_id:
+                    raise ValidationError("Todos los integrantes adicionales deben pertenecer a la iglesia origen.")
+                existe_pendiente = TrasladoMiembro.objects.filter(
+                    miembro=integrante,
+                    estado=TrasladoMiembro.Estado.SOLICITADO,
+                ).exists()
+                existe_como_integrante = TrasladoFamiliarIntegrante.objects.filter(
+                    miembro=integrante,
+                    traslado__estado=TrasladoMiembro.Estado.SOLICITADO,
+                ).exists()
+                if existe_pendiente or existe_como_integrante:
+                    raise ValidationError(f"{integrante} ya tiene un traslado pendiente.")
+        else:
+            cleaned_data["familia_origen"] = None
+
         return cleaned_data
 
     def save(self, commit=True):
@@ -71,8 +143,26 @@ class TrasladoMiembroForm(forms.ModelForm):
             instance.solicitado_por = self.user
         if commit:
             instance.save()
-            self.save_m2m()
+            self._guardar_integrantes_familiares(instance)
         return instance
+
+    def _guardar_integrantes_familiares(self, instance):
+        instance.integrantes_familiares.all().delete()
+        if not instance.es_familiar:
+            return
+        familia = self.cleaned_data.get("familia_origen")
+        for miembro in self.cleaned_data.get("integrantes_familiares", []):
+            relacion = (
+                MiembroFamilia.objects.filter(familia=familia, miembro=miembro, activo=True)
+                .values_list("relacion", flat=True)
+                .first()
+                or ""
+            )
+            TrasladoFamiliarIntegrante.objects.create(
+                traslado=instance,
+                miembro=miembro,
+                relacion=relacion,
+            )
 
 
 class ResponderTrasladoForm(forms.Form):
@@ -223,3 +313,35 @@ class MatricularEscuelaDestinoForm(forms.Form):
             if existe:
                 raise ValidationError("El miembro ya tiene matricula activa en esa clase.")
         return cleaned_data
+
+
+class TareaPastoralTrasladoForm(forms.ModelForm):
+    class Meta:
+        model = TareaPastoralTraslado
+        fields = ("descripcion",)
+        widgets = {
+            "descripcion": forms.TextInput(attrs={"class": FIELD_CLASS}),
+        }
+
+    def __init__(self, *args, traslado=None, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.traslado = traslado
+        self.user = user
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.traslado is not None:
+            instance.traslado = self.traslado
+        if self.user is not None:
+            instance.creada_por = self.user
+        if commit:
+            instance.save()
+        return instance
+
+
+class CompletarTareaPastoralTrasladoForm(forms.Form):
+    observacion = forms.CharField(
+        label="Observacion",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3, "class": FIELD_CLASS}),
+    )

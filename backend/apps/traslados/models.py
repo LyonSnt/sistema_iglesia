@@ -22,6 +22,14 @@ class TrasladoMiembro(TimeStampedModel):
         on_delete=models.PROTECT,
         related_name="traslados_destino",
     )
+    es_familiar = models.BooleanField(default=False)
+    familia_origen = models.ForeignKey(
+        "familias.Familia",
+        on_delete=models.PROTECT,
+        related_name="traslados_familiares",
+        null=True,
+        blank=True,
+    )
     estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.SOLICITADO)
     motivo = models.TextField()
     observacion_respuesta = models.TextField(blank=True)
@@ -146,3 +154,68 @@ class TrasladoMiembro(TimeStampedModel):
     @property
     def integracion_destino_pendiente(self):
         return self.integracion_familiar_pendiente or self.revision_escuela_dominical_pendiente
+
+    @property
+    def integrantes_familiares_count(self):
+        if not self.es_familiar:
+            return 0
+        return self.integrantes_familiares.count()
+
+
+class TrasladoFamiliarIntegrante(TimeStampedModel):
+    traslado = models.ForeignKey(
+        TrasladoMiembro,
+        on_delete=models.CASCADE,
+        related_name="integrantes_familiares",
+    )
+    miembro = models.ForeignKey(
+        "miembros.Miembro",
+        on_delete=models.PROTECT,
+        related_name="traslados_familiares_adicionales",
+    )
+    relacion = models.CharField(max_length=20, blank=True)
+
+    class Meta:
+        ordering = ("miembro__apellidos", "miembro__nombres")
+        unique_together = ("traslado", "miembro")
+        verbose_name = "integrante de traslado familiar"
+        verbose_name_plural = "integrantes de traslado familiar"
+
+    def __str__(self):
+        return f"{self.miembro} en {self.traslado}"
+
+
+class TareaPastoralTraslado(TimeStampedModel):
+    class Estado(models.TextChoices):
+        PENDIENTE = "PENDIENTE", "Pendiente"
+        COMPLETADA = "COMPLETADA", "Completada"
+
+    traslado = models.ForeignKey(
+        TrasladoMiembro,
+        on_delete=models.CASCADE,
+        related_name="tareas_pastorales",
+    )
+    descripcion = models.CharField(max_length=180)
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.PENDIENTE)
+    creada_por = models.ForeignKey(
+        "usuarios.Usuario",
+        on_delete=models.PROTECT,
+        related_name="tareas_traslado_creadas",
+    )
+    completada_por = models.ForeignKey(
+        "usuarios.Usuario",
+        on_delete=models.PROTECT,
+        related_name="tareas_traslado_completadas",
+        null=True,
+        blank=True,
+    )
+    completada_en = models.DateTimeField(null=True, blank=True)
+    observacion = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ("estado", "creado_en")
+        verbose_name = "tarea pastoral de traslado"
+        verbose_name_plural = "tareas pastorales de traslado"
+
+    def __str__(self):
+        return self.descripcion

@@ -16,7 +16,15 @@
                     <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
                        href="{% url 'miembros:bautismo' miembro.pk %}">Bautismo</a>
                     <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-                       href="{% url 'miembros:membresia' miembro.pk %}">Membresia</a>
+                       href="{% url 'miembros:membresia' miembro.pk %}">Admision</a>
+                    <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                       href="{% url 'miembros:restauracion' miembro.pk %}">Restauracion</a>
+                    <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                       href="{% url 'miembros:disciplina' miembro.pk %}">Disciplina</a>
+                    <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                       href="{% url 'miembros:suspension' miembro.pk %}">Suspension</a>
+                    <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                       href="{% url 'miembros:baja_voluntaria' miembro.pk %}">Baja voluntaria</a>
                     <a class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
                        href="{% url 'miembros:matrimonio' miembro.pk %}">Matrimonio</a>
                     <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
@@ -121,6 +129,39 @@
                     </dd>
                 </div>
             </dl>
+        </div>
+        <div class="rounded border border-slate-200 bg-white p-5">
+            <h2 class="font-semibold text-slate-950">Historial pastoral</h2>
+            <div class="mt-4 overflow-hidden rounded border border-slate-200">
+                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead class="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                        <tr>
+                            <th class="px-4 py-3">Accion</th>
+                            <th class="px-4 py-3">Fecha</th>
+                            <th class="px-4 py-3">Estado</th>
+                            <th class="px-4 py-3">Registrado por</th>
+                            <th class="px-4 py-3">Motivo</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for evento in historial_pastoral %}
+                            <tr>
+                                <td class="px-4 py-3 font-medium text-slate-950">{{ evento.get_tipo_display }}</td>
+                                <td class="px-4 py-3 text-slate-700">{{ evento.fecha|date:"Y-m-d" }}</td>
+                                <td class="px-4 py-3 text-slate-700">{{ evento.estado_anterior }} a {{ evento.estado_nuevo }}</td>
+                                <td class="px-4 py-3 text-slate-700">{{ evento.registrado_por }}</td>
+                                <td class="px-4 py-3 text-slate-700">{{ evento.motivo }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td class="px-4 py-8 text-center text-sm text-slate-500" colspan="5">
+                                    No hay eventos pastorales registrados.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
         <div class="rounded border border-slate-200 bg-white p-5">
             <h2 class="font-semibold text-slate-950">Matrimonios</h2>

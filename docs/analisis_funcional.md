@@ -240,14 +240,16 @@ Prioridad: media.
 Miembros contempla listado, busqueda, detalle, creacion, edicion y acciones
 pastorales iniciales como bautismo, membresia y fallecimiento.
 
-Casos pastorales que pueden aparecer:
+Estado: corregido funcionalmente para admision formal, baja voluntaria,
+restauracion, disciplina, suspension, historial pastoral, auditoria y cierre
+completo por fallecimiento.
 
-- baja voluntaria;
-- cambio de estado de membresia;
-- restauracion;
-- disciplina o suspension;
-- visitante o simpatizante antes de membresia;
-- seguimiento pastoral historico.
+Casos pastorales que quedan como crecimiento futuro:
+
+- visitantes o simpatizantes antes de membresia;
+- soporte documental pastoral obligatorio segun tipo de accion;
+- seguimiento pastoral periodico o tareas de acompanamiento;
+- reportes pastorales por estado y periodo.
 
 Riesgo funcional:
 
@@ -499,14 +501,18 @@ Automatizaciones recomendadas:
 ### Miembros
 
 Sentido funcional: alto. Listado, busqueda, detalle, creacion, edicion y
-acciones pastorales iniciales cubren la base de membresia.
+acciones pastorales ampliadas cubren la base de membresia.
+
+Estado: el ciclo pastoral ampliado registra bautismo, admision formal, baja
+voluntaria, restauracion, disciplina, suspension y fallecimiento. Cada evento
+conserva historial pastoral con motivo, usuario, estado anterior/nuevo y
+auditoria. El fallecimiento cierra relaciones locales activas del miembro.
 
 Procesos faltantes:
 
-- admision formal;
-- bautismo con soporte documental;
-- restauracion, disciplina, baja voluntaria y cambio de estado de membresia;
-- fallecimiento con cierre de relaciones activas.
+- bautismo u otras acciones con soporte documental obligatorio;
+- visitantes o simpatizantes antes de membresia;
+- seguimiento pastoral periodico.
 
 Casos no contemplados:
 
@@ -519,12 +525,12 @@ Errores posibles:
 
 - duplicar miembros;
 - editar datos historicos como si fueran actuales;
-- registrar estado de membresia incorrecto.
+- registrar estado de membresia incorrecto sin revisar historial.
 
 Controles recomendados:
 
 - busqueda preventiva de duplicados antes de crear;
-- historial de estados pastorales;
+- documentos obligatorios para acciones pastorales sensibles;
 - motivo obligatorio para cambios pastorales.
 
 Automatizaciones recomendadas:
@@ -540,8 +546,7 @@ adecuados para la realidad pastoral.
 Procesos faltantes:
 
 - separacion, divorcio, viudez y recomposicion familiar;
-- cambio formal de jefe de hogar;
-- traslado familiar completo.
+- cambio formal de jefe de hogar.
 
 Casos no contemplados:
 
@@ -572,16 +577,19 @@ Automatizaciones recomendadas:
 Sentido funcional: alto. Modelar cargos como asignaciones y no como roles base
 es una decision solida.
 
+Estado: corregido funcionalmente para nombramiento, posesion, renuncia,
+reemplazo, cargos titulares/interinos/suplentes, historial formal, auditoria,
+incompatibilidades para cargos sensibles y documentos obligatorios de posesion
+cuando el cargo lo requiere.
+
 Procesos faltantes:
 
-- nombramiento, posesion, renuncia, reemplazo y finalizacion anticipada;
-- soporte documental obligatorio para ciertos cargos;
-- cargos interinos o suplentes.
+- autoridades nacionales o regionales como asignaciones organizacionales;
+- constancias de cargo generadas desde la asignacion;
+- alertas de vencimiento de cargos.
 
 Casos no contemplados:
 
-- cargos incompatibles;
-- periodos solapados;
 - autoridades nacionales o regionales como asignaciones organizacionales.
 
 Errores posibles:
@@ -592,9 +600,9 @@ Errores posibles:
 
 Controles recomendados:
 
-- validacion de solapamiento por cargo y periodo;
-- matriz de incompatibilidades;
-- documento obligatorio para cargos sensibles.
+- ampliar matriz de incompatibilidades si se definen cargos incompatibles por
+  reglamento interno;
+- revisar periodicamente cargos sensibles nombrados o vigentes.
 
 Automatizaciones recomendadas:
 
@@ -732,12 +740,16 @@ con observacion, permisos por iglesia destino, filtro de pendientes y auditoria.
 Tambien existe checklist de integracion en destino para revision familiar y
 revision de Escuela Dominical cuando aplica, con filtros y auditoria. El
 checklist permite vincular al miembro a una familia existente del destino y
-matricularlo en una clase existente de Escuela Dominical del destino.
+matricularlo en una clase existente de Escuela Dominical del destino. El
+traslado familiar completo permite seleccionar integrantes adicionales de la
+familia origen, moverlos a destino al aceptar y cerrar sus relaciones locales
+activas en origen. La recepcion en destino genera tareas pastorales de
+seguimiento, que pueden crearse, completarse y auditarse.
 
 Procesos faltantes:
 
 - integracion a ministerios en destino;
-- traslado familiar completo.
+- constancia de traslado.
 
 Casos no contemplados:
 
@@ -759,8 +771,6 @@ Controles recomendados:
 
 Automatizaciones recomendadas:
 
-- sugerir traslado familiar;
-- automatizar tareas pastorales de seguimiento en destino;
 - generar certificado o constancia de traslado.
 
 ### Finanzas Locales
@@ -1039,11 +1049,7 @@ Automatizaciones recomendadas:
 Antes de crear modulos grandes nuevos, conviene completar los procesos que ya
 empezaron y que hoy dependen de pasos manuales o decisiones fuera del sistema:
 
-- tareas pastorales de seguimiento desde la integracion de traslados;
-- baja, suspension y cambio de estado de miembros;
-- cambios formales de autoridades y cargos;
-- cierre familiar completo cuando hay traslado, fallecimiento o cambio de jefe
-  de hogar;
+- cierre familiar completo cuando hay cambio de jefe de hogar;
 - inventario fisico, actas y aprobaciones de baja.
 
 ### Prioridad 2: reforzar controles preventivos
@@ -1095,7 +1101,9 @@ Resultado esperado:
 - finalizacion de participaciones ministeriales activas en origen;
 - retiro de matriculas activas de Escuela Dominical en origen;
 - limpieza de responsable de ministerio cuando el trasladado era responsable;
-- auditoria con resumen de cierres aplicados.
+- auditoria con resumen de cierres aplicados;
+- traslado familiar con integrantes adicionales;
+- tareas pastorales posteriores a recepcion.
 
 ### Bloque 2: Aportes nacionales y operacion financiera nacional
 

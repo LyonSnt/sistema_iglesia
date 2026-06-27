@@ -23,6 +23,7 @@ class AsignacionCargoForm(forms.ModelForm):
             "cargo",
             "miembro",
             "usuario",
+            "tipo_asignacion",
             "fecha_inicio",
             "fecha_fin",
             "estado",
@@ -75,6 +76,7 @@ class AsignacionCargoForm(forms.ModelForm):
         usuario = cleaned_data.get("usuario")
         fecha_inicio = cleaned_data.get("fecha_inicio")
         fecha_fin = cleaned_data.get("fecha_fin")
+        estado = cleaned_data.get("estado")
 
         if self.user is not None and not usuario_es_nacional(self.user):
             iglesia = self.user.iglesia
@@ -93,6 +95,21 @@ class AsignacionCargoForm(forms.ModelForm):
             raise ValidationError("Una filial no puede asignar cargos nacionales.")
         if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
             raise ValidationError("La fecha de fin no puede ser anterior a la fecha de inicio.")
+        if iglesia and cargo and cargo.es_sensible and estado in {
+            AsignacionCargo.Estado.NOMBRADO,
+            AsignacionCargo.Estado.VIGENTE,
+        }:
+            solapada = AsignacionCargo.objects.filter(
+                iglesia=iglesia,
+                cargo=cargo,
+                estado__in=[AsignacionCargo.Estado.NOMBRADO, AsignacionCargo.Estado.VIGENTE],
+            )
+            if self.instance.pk:
+                solapada = solapada.exclude(pk=self.instance.pk)
+            if fecha_inicio:
+                solapada = solapada.filter(fecha_fin__isnull=True) | solapada.filter(fecha_fin__gte=fecha_inicio)
+            if solapada.exists():
+                raise ValidationError("Ya existe una asignacion sensible nombrada o vigente para ese cargo.")
 
         return cleaned_data
 
@@ -126,3 +143,50 @@ class FinalizarAsignacionCargoForm(forms.Form):
         if self.asignacion is not None and fecha_fin < self.asignacion.fecha_inicio:
             raise ValidationError("La fecha de fin no puede ser anterior a la fecha de inicio.")
         return fecha_fin
+
+
+class AccionFormalCargoForm(forms.Form):
+    fecha = forms.DateField(
+        label="Fecha",
+        widget=forms.DateInput(attrs={"type": "date", "class": FIELD_CLASS}),
+    )
+    motivo = forms.CharField(
+        label="Motivo",
+        widget=forms.Textarea(attrs={"rows": 4, "class": FIELD_CLASS}),
+    )
+
+    def __init__(self, *args, asignacion=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.asignacion = asignacion
+
+    def clean_fecha(self):
+        fecha = self.cleaned_data["fecha"]
+        if self.asignacion is not None and fecha < self.asignacion.fecha_inicio:
+            raise ValidationError("La fecha no puede ser anterior a la fecha de inicio.")
+        return fecha
+
+
+class ReemplazarAsignacionCargoForm(AccionFormalCargoForm):
+    nueva_asignacion = forms.ModelChoiceField(
+        label="Nueva asignacion",
+        queryset=AsignacionCargo.objects.none(),
+        widget=forms.Select(attrs={"class": FIELD_CLASS}),
+    )
+
+    def __init__(self, *args, asignacion=None, **kwargs):
+        super().__init__(*args, asignacion=asignacion, **kwargs)
+        if asignacion is not None:
+            self.fields["nueva_asignacion"].queryset = AsignacionCargo.objects.filter(
+                iglesia=asignacion.iglesia,
+                cargo=asignacion.cargo,
+                estado=AsignacionCargo.Estado.NOMBRADO,
+                activo=True,
+            ).exclude(pk=asignacion.pk).select_related("miembro", "usuario").order_by("-fecha_inicio")
+
+    def clean(self):
+        cleaned_data = super().clean()
+        nueva = cleaned_data.get("nueva_asignacion")
+        if self.asignacion is not None and nueva is not None:
+            if nueva.iglesia_id != self.asignacion.iglesia_id or nueva.cargo_id != self.asignacion.cargo_id:
+                raise ValidationError("La nueva asignacion debe pertenecer al mismo cargo e iglesia.")
+        return cleaned_data

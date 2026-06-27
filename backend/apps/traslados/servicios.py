@@ -8,7 +8,7 @@ from apps.familias.models import Familia, MiembroFamilia
 from apps.miembros.models import Miembro
 from apps.ministerios.models import Ministerio, ParticipacionMinisterio
 
-from .models import TrasladoMiembro
+from .models import TareaPastoralTraslado, TrasladoFamiliarIntegrante, TrasladoMiembro
 
 
 MOTIVO_CIERRE_TRASLADO = "Cierre automatico por traslado aceptado."
@@ -42,6 +42,22 @@ def aceptar_traslado(traslado, usuario, observacion=""):
     fecha_cierre = timezone.localdate()
 
     resumen_cierre = _cerrar_relaciones_origen(miembro, iglesia_origen_id, fecha_cierre)
+    integrantes_movidos = []
+    for integrante in _integrantes_familiares_para_mover(traslado):
+        integrante_miembro = Miembro.objects.select_for_update().get(pk=integrante.miembro_id)
+        if integrante_miembro.iglesia_id != iglesia_origen_id:
+            continue
+        resumen_integrante = _cerrar_relaciones_origen(integrante_miembro, iglesia_origen_id, fecha_cierre)
+        integrante_miembro.iglesia = traslado.iglesia_destino
+        integrante_miembro.estado = Miembro.Estado.ACTIVO
+        integrante_miembro.save(update_fields=["iglesia", "estado", "actualizado_en"])
+        integrantes_movidos.append(
+            {
+                "miembro_id": integrante_miembro.pk,
+                "relacion": integrante.relacion,
+                "cierres_origen": resumen_integrante,
+            }
+        )
 
     miembro.iglesia = traslado.iglesia_destino
     miembro.estado = Miembro.Estado.ACTIVO
@@ -73,10 +89,18 @@ def aceptar_traslado(traslado, usuario, observacion=""):
             "miembro_id": miembro.pk,
             "iglesia_id": traslado.iglesia_destino_id,
             "cierres_origen": resumen_cierre,
+            "traslado_familiar": traslado.es_familiar,
+            "integrantes_familiares_movidos": integrantes_movidos,
         },
         motivo="Traslado de miembro aceptado por iglesia destino.",
     )
     return traslado
+
+
+def _integrantes_familiares_para_mover(traslado):
+    if not traslado.es_familiar:
+        return TrasladoFamiliarIntegrante.objects.none()
+    return traslado.integrantes_familiares.select_related("miembro").order_by("miembro__apellidos", "miembro__nombres")
 
 
 @transaction.atomic
@@ -351,6 +375,7 @@ def confirmar_recepcion_traslado(traslado, usuario, observacion_recepcion=""):
         iglesia=traslado.iglesia_destino,
         motivo="Recepcion pastoral confirmada por iglesia destino.",
     )
+    _crear_tareas_pastorales_base(traslado, usuario)
     return traslado
 
 
@@ -405,3 +430,46 @@ def confirmar_revision_integracion_destino(traslado, usuario, tipo, observacion=
         motivo=motivo,
     )
     return traslado
+
+
+def _crear_tareas_pastorales_base(traslado, usuario):
+    tareas = [
+        "Realizar seguimiento pastoral posterior a la recepcion.",
+        "Confirmar integracion congregacional en la iglesia destino.",
+    ]
+    if traslado.es_familiar:
+        tareas.append("Revisar integracion pastoral de la familia trasladada.")
+    for descripcion in tareas:
+        TareaPastoralTraslado.objects.get_or_create(
+            traslado=traslado,
+            descripcion=descripcion,
+            defaults={"creada_por": usuario},
+        )
+
+
+@transaction.atomic
+def completar_tarea_pastoral_traslado(tarea, usuario, observacion=""):
+    tarea = TareaPastoralTraslado.objects.select_for_update().select_related("traslado").get(pk=tarea.pk)
+    if tarea.estado == TareaPastoralTraslado.Estado.COMPLETADA:
+        return tarea
+
+    ahora = timezone.now()
+    tarea.estado = TareaPastoralTraslado.Estado.COMPLETADA
+    tarea.completada_por = usuario
+    tarea.completada_en = ahora
+    tarea.observacion = observacion
+    tarea.save(update_fields=["estado", "completada_por", "completada_en", "observacion", "actualizado_en"])
+    _registrar_auditoria(
+        traslado=tarea.traslado,
+        usuario=usuario,
+        accion="COMPLETAR_TAREA_PASTORAL",
+        valor_anterior={"tarea_id": tarea.pk, "estado": TareaPastoralTraslado.Estado.PENDIENTE},
+        valor_nuevo={
+            "tarea_id": tarea.pk,
+            "estado": TareaPastoralTraslado.Estado.COMPLETADA,
+            "completada_en": ahora.isoformat(),
+        },
+        iglesia=tarea.traslado.iglesia_destino,
+        motivo="Tarea pastoral posterior a traslado completada.",
+    )
+    return tarea

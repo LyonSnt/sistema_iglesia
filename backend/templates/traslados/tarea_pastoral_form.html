@@ -1,36 +1,31 @@
 {% extends "base.html" %}
-{% block title %}{{ titulo }} | Ecclesia{% endblock %}
+{% block title %}Agregar tarea pastoral | Ecclesia{% endblock %}
 {% block content %}
     <section class="mx-auto max-w-2xl space-y-6">
         <div class="border-b border-slate-200 pb-6">
             <a class="text-sm font-medium text-slate-500 hover:text-slate-950"
-               href="{% url 'miembros:detail' miembro.pk %}">{{ miembro.apellidos }} {{ miembro.nombres }}</a>
-            <h1 class="mt-2 text-3xl font-semibold text-slate-950">{{ titulo }}</h1>
-            <p class="mt-2 text-sm leading-6 text-slate-600">{{ descripcion }}</p>
+               href="{% url 'traslados:detail' traslado.pk %}">Traslado de {{ traslado.miembro }}</a>
+            <h1 class="mt-2 text-3xl font-semibold text-slate-950">Agregar tarea pastoral</h1>
         </div>
         <form class="space-y-5 rounded border border-slate-200 bg-white p-5"
               method="post"
               novalidate>
             {% csrf_token %}
             {% if form.non_field_errors %}
-                <div class="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {{ form.non_field_errors|striptags }}
-                </div>
+                <div class="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{ form.non_field_errors|striptags }}</div>
             {% endif %}
             {% for field in form %}
                 <label class="block">
                     <span class="text-sm font-medium text-slate-700">{{ field.label }}</span>
                     {{ field }}
-                    {% if field.errors %}
-                        <span class="mt-1 block text-sm text-red-700">{{ field.errors|striptags }}</span>
-                    {% endif %}
+                    {% if field.errors %}<span class="mt-1 block text-sm text-red-700">{{ field.errors|striptags }}</span>{% endif %}
                 </label>
             {% endfor %}
             <div class="flex flex-wrap gap-2 border-t border-slate-200 pt-5">
                 <button class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
                         type="submit">Guardar</button>
                 <a class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                   href="{% url 'miembros:detail' miembro.pk %}">Cancelar</a>
+                   href="{% url 'traslados:detail' traslado.pk %}">Cancelar</a>
             </div>
         </form>
     </section>

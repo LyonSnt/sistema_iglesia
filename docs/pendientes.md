@@ -29,17 +29,21 @@
 - Miembros: [x] listado inicial; [x] creacion y edicion; [x] detalle;
   [x] bautismo, membresia y fallecimiento inicial; [x] vinculacion inicial con
   familias; [x] gestion inicial de familias; [x] desactivar vinculos y ajuste
-  de jefe de hogar; [x] matrimonios; pendiente ciclo pastoral ampliado:
-  admision formal, baja voluntaria, restauracion, disciplina, suspension y
-  cierre completo por fallecimiento.
+  de jefe de hogar; [x] matrimonios; [x] ciclo pastoral ampliado con admision
+  formal, baja voluntaria, restauracion, disciplina, suspension, historial,
+  auditoria y cierre completo por fallecimiento; pendiente visitantes o
+  simpatizantes, soporte documental pastoral y controles preventivos de
+  duplicados.
 - Familias y matrimonios: pendiente separacion, divorcio, viudez,
-  recomposicion familiar, traslado familiar completo y controles de jefatura
-  activa.
+  recomposicion familiar y controles de jefatura activa.
 - Cargos/directivas: [x] listado; [x] detalle; [x] creacion y edicion;
   [x] finalizacion; [x] API de consulta; [x] documentos adjuntos;
-  [x] recalculo de rol funcional al finalizar desde edicion general; pendiente
-  flujo formal de nombramiento, posesion, renuncia, reemplazo, cargos
-  interinos, incompatibilidades y documentos obligatorios por cargo sensible.
+  [x] recalculo de rol funcional al finalizar desde edicion general;
+  [x] flujo formal de nombramiento, posesion, renuncia y reemplazo;
+  [x] cargos interinos o suplentes; [x] incompatibilidades para cargos
+  sensibles; [x] documentos obligatorios para posesion de cargos sensibles;
+  pendiente autoridades nacionales o regionales como asignaciones
+  organizacionales y constancias de cargo.
 - Ministerios: [x] listado; [x] detalle; [x] creacion y edicion;
   [x] participaciones; [x] finalizacion de participaciones; [x] API de
   consulta; pendiente responsables suplentes, ministerios temporales, informes
@@ -47,8 +51,9 @@
 - Traslados: [x] flujo origen/destino; [x] auditoria; [x] reporte inicial;
   [x] documentos adjuntos; [x] recepcion pastoral en destino; [x] checklist de
   integracion familiar y Escuela Dominical en destino; [x] vinculacion familiar
-  asistida; [x] matricula asistida de Escuela Dominical; pendiente traslado
-  familiar completo, tareas pastorales y constancia de traslado.
+  asistida; [x] matricula asistida de Escuela Dominical; [x] traslado familiar
+  completo; [x] tareas pastorales posteriores a recepcion; pendiente constancia
+  de traslado.
 - Finanzas: [x] conceptos; [x] ingresos; [x] egresos; [x] anulacion;
   [x] cierre mensual; [x] correccion posterior de cierres sin aporte nacional;
   [x] correccion posterior de cierres con aporte nacional pendiente anulado;

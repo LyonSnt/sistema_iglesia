@@ -1,11 +1,13 @@
 from datetime import date
 
 from django.contrib.auth.models import Group
+from django.contrib.contenttypes.models import ContentType
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
-from apps.cargos.models import AsignacionCargo, Cargo
+from apps.auditoria.models import RegistroAuditoria
+from apps.cargos.models import AsignacionCargo, Cargo, HistorialAsignacionCargo
 from apps.documentos.models import DocumentoAdjunto
 from apps.iglesias.models import Iglesia
 from apps.miembros.models import Miembro
@@ -74,6 +76,7 @@ class AsignacionCargoViewsTests(TestCase):
             "cargo": self.cargo_filial.pk,
             "miembro": self.miembro.pk,
             "usuario": "",
+            "tipo_asignacion": AsignacionCargo.TipoAsignacion.TITULAR,
             "fecha_inicio": "2026-02-01",
             "fecha_fin": "",
             "estado": AsignacionCargo.Estado.VIGENTE,
@@ -307,6 +310,167 @@ class AsignacionCargoViewsTests(TestCase):
         usuario_asignado.refresh_from_db()
         self.assertEqual(usuario_asignado.rol, Usuario.Rol.ENCARGADO_FILIAL)
         self.assertTrue(usuario_asignado.groups.filter(name=Usuario.Rol.ENCARGADO_FILIAL).exists())
+
+    def test_registrar_nombramiento_deja_asignacion_nombrada_y_auditada(self):
+        usuario = self.crear_usuario("secretario_nombramiento", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("cargos:nombramiento", args=[self.asignacion.pk]),
+            {"fecha": "2026-02-01", "motivo": "Acta de nombramiento aprobada."},
+        )
+
+        self.assertRedirects(response, reverse("cargos:detail", args=[self.asignacion.pk]))
+        self.asignacion.refresh_from_db()
+        self.assertEqual(self.asignacion.estado, AsignacionCargo.Estado.NOMBRADO)
+        historial = HistorialAsignacionCargo.objects.get(asignacion=self.asignacion)
+        self.assertEqual(historial.tipo, HistorialAsignacionCargo.Tipo.NOMBRAMIENTO)
+        self.assertTrue(RegistroAuditoria.objects.filter(modulo="cargos", accion="NOMBRAMIENTO").exists())
+
+    def test_registrar_posesion_activa_asignacion_y_sincroniza_acceso(self):
+        usuario_asignado = self.crear_usuario("pastor_posesion", Usuario.Rol.SOLO_LECTURA, self.filial)
+        asignacion = AsignacionCargo.objects.create(
+            iglesia=self.filial,
+            cargo=self.cargo_filial,
+            usuario=usuario_asignado,
+            fecha_inicio=date(2026, 1, 1),
+            estado=AsignacionCargo.Estado.NOMBRADO,
+        )
+        usuario = self.crear_usuario("secretario_posesion", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("cargos:posesion", args=[asignacion.pk]),
+            {"fecha": "2026-02-01", "motivo": "Posesion registrada."},
+        )
+
+        self.assertRedirects(response, reverse("cargos:detail", args=[asignacion.pk]))
+        asignacion.refresh_from_db()
+        usuario_asignado.refresh_from_db()
+        self.assertEqual(asignacion.estado, AsignacionCargo.Estado.VIGENTE)
+        self.assertEqual(asignacion.fecha_inicio, date(2026, 2, 1))
+        self.assertEqual(usuario_asignado.rol, Usuario.Rol.PASTOR_FILIAL)
+        self.assertTrue(
+            HistorialAsignacionCargo.objects.filter(
+                asignacion=asignacion,
+                tipo=HistorialAsignacionCargo.Tipo.POSESION,
+            ).exists()
+        )
+
+    def test_posesion_de_cargo_sensible_requiere_acta_activa(self):
+        self.cargo_filial.es_sensible = True
+        self.cargo_filial.requiere_documento_posesion = True
+        self.cargo_filial.save(update_fields=["es_sensible", "requiere_documento_posesion"])
+        asignacion = AsignacionCargo.objects.create(
+            iglesia=self.filial,
+            cargo=self.cargo_filial,
+            miembro=self.miembro,
+            fecha_inicio=date(2026, 1, 1),
+            estado=AsignacionCargo.Estado.NOMBRADO,
+        )
+        usuario = self.crear_usuario("secretario_acta", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("cargos:posesion", args=[asignacion.pk]),
+            {"fecha": "2026-02-01", "motivo": "Posesion sin acta."},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        asignacion.refresh_from_db()
+        self.assertEqual(asignacion.estado, AsignacionCargo.Estado.NOMBRADO)
+        self.assertContains(response, "requiere un acta activa")
+
+        DocumentoAdjunto.objects.create(
+            iglesia=self.filial,
+            content_type=ContentType.objects.get_for_model(AsignacionCargo),
+            object_id=asignacion.pk,
+            archivo=SimpleUploadedFile("acta.pdf", b"%PDF-1.4", content_type="application/pdf"),
+            nombre="Acta de posesion",
+            tipo=DocumentoAdjunto.Tipo.ACTA,
+            subido_por=usuario,
+        )
+        response = self.client.post(
+            reverse("cargos:posesion", args=[asignacion.pk]),
+            {"fecha": "2026-02-01", "motivo": "Posesion con acta."},
+        )
+
+        self.assertRedirects(response, reverse("cargos:detail", args=[asignacion.pk]))
+        asignacion.refresh_from_db()
+        self.assertEqual(asignacion.estado, AsignacionCargo.Estado.VIGENTE)
+
+    def test_registrar_renuncia_finaliza_y_recalcula_acceso(self):
+        usuario_asignado = self.crear_usuario("pastor_renuncia", Usuario.Rol.PASTOR_FILIAL, self.filial)
+        Group.objects.get_or_create(name=Usuario.Rol.PASTOR_FILIAL)
+        usuario_asignado.groups.set([Group.objects.get(name=Usuario.Rol.PASTOR_FILIAL)])
+        asignacion = AsignacionCargo.objects.create(
+            iglesia=self.filial,
+            cargo=self.cargo_filial,
+            usuario=usuario_asignado,
+            fecha_inicio=date(2026, 1, 1),
+        )
+        usuario = self.crear_usuario("secretario_renuncia", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("cargos:renuncia", args=[asignacion.pk]),
+            {"fecha": "2026-06-01", "motivo": "Renuncia formal presentada."},
+        )
+
+        self.assertRedirects(response, reverse("cargos:detail", args=[asignacion.pk]))
+        asignacion.refresh_from_db()
+        usuario_asignado.refresh_from_db()
+        self.assertEqual(asignacion.estado, AsignacionCargo.Estado.FINALIZADO)
+        self.assertEqual(asignacion.fecha_fin, date(2026, 6, 1))
+        self.assertEqual(usuario_asignado.rol, Usuario.Rol.SOLO_LECTURA)
+        self.assertTrue(
+            HistorialAsignacionCargo.objects.filter(
+                asignacion=asignacion,
+                tipo=HistorialAsignacionCargo.Tipo.RENUNCIA,
+            ).exists()
+        )
+
+    def test_registrar_reemplazo_finaliza_actual_y_posesiona_nueva_asignacion(self):
+        usuario_actual = self.crear_usuario("pastor_actual", Usuario.Rol.PASTOR_FILIAL, self.filial)
+        usuario_nuevo = self.crear_usuario("pastor_nuevo", Usuario.Rol.SOLO_LECTURA, self.filial)
+        asignacion_actual = AsignacionCargo.objects.create(
+            iglesia=self.filial,
+            cargo=self.cargo_filial,
+            usuario=usuario_actual,
+            fecha_inicio=date(2026, 1, 1),
+        )
+        nueva_asignacion = AsignacionCargo.objects.create(
+            iglesia=self.filial,
+            cargo=self.cargo_filial,
+            usuario=usuario_nuevo,
+            fecha_inicio=date(2026, 5, 1),
+            estado=AsignacionCargo.Estado.NOMBRADO,
+            tipo_asignacion=AsignacionCargo.TipoAsignacion.INTERINO,
+        )
+        usuario = self.crear_usuario("secretario_reemplazo", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("cargos:reemplazo", args=[asignacion_actual.pk]),
+            {
+                "fecha": "2026-06-01",
+                "motivo": "Reemplazo por salida de autoridad.",
+                "nueva_asignacion": nueva_asignacion.pk,
+            },
+        )
+
+        self.assertRedirects(response, reverse("cargos:detail", args=[asignacion_actual.pk]))
+        asignacion_actual.refresh_from_db()
+        nueva_asignacion.refresh_from_db()
+        usuario_nuevo.refresh_from_db()
+        self.assertEqual(asignacion_actual.estado, AsignacionCargo.Estado.FINALIZADO)
+        self.assertEqual(nueva_asignacion.estado, AsignacionCargo.Estado.VIGENTE)
+        self.assertEqual(nueva_asignacion.asignacion_reemplazada, asignacion_actual)
+        self.assertEqual(usuario_nuevo.rol, Usuario.Rol.PASTOR_FILIAL)
+        self.assertEqual(
+            HistorialAsignacionCargo.objects.filter(tipo=HistorialAsignacionCargo.Tipo.REEMPLAZO).count(),
+            2,
+        )
 
     def test_filial_no_puede_finalizar_asignacion_de_otra_iglesia(self):
         usuario = self.crear_usuario("secretario", Usuario.Rol.SECRETARIO_FILIAL, self.filial)

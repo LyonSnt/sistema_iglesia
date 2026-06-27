@@ -68,15 +68,26 @@ class MiembroForm(forms.ModelForm):
         return instance
 
 
+FIELD_CLASS = (
+    "mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 "
+    "shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+)
+
+
 class FechaPastoralForm(forms.Form):
     fecha = forms.DateField(
         label="Fecha",
         widget=forms.DateInput(
             attrs={
                 "type": "date",
-                "class": "mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200",
+                "class": FIELD_CLASS,
             }
         ),
+    )
+    motivo = forms.CharField(
+        label="Motivo u observacion",
+        required=True,
+        widget=forms.Textarea(attrs={"rows": 4, "class": FIELD_CLASS}),
     )
 
 
@@ -86,7 +97,7 @@ class BautismoForm(FechaPastoralForm):
         widget=forms.DateInput(
             attrs={
                 "type": "date",
-                "class": "mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200",
+                "class": FIELD_CLASS,
             }
         ),
     )
@@ -98,7 +109,7 @@ class MembresiaForm(FechaPastoralForm):
         widget=forms.DateInput(
             attrs={
                 "type": "date",
-                "class": "mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200",
+                "class": FIELD_CLASS,
             }
         ),
     )
@@ -110,9 +121,44 @@ class FallecimientoForm(FechaPastoralForm):
         widget=forms.DateInput(
             attrs={
                 "type": "date",
-                "class": "mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200",
+                "class": FIELD_CLASS,
             }
         ),
+    )
+
+
+class AdmisionFormalForm(FechaPastoralForm):
+    fecha = forms.DateField(
+        label="Fecha de admision formal",
+        widget=forms.DateInput(attrs={"type": "date", "class": FIELD_CLASS}),
+    )
+
+
+class BajaVoluntariaForm(FechaPastoralForm):
+    fecha = forms.DateField(
+        label="Fecha de baja voluntaria",
+        widget=forms.DateInput(attrs={"type": "date", "class": FIELD_CLASS}),
+    )
+
+
+class RestauracionForm(FechaPastoralForm):
+    fecha = forms.DateField(
+        label="Fecha de restauracion",
+        widget=forms.DateInput(attrs={"type": "date", "class": FIELD_CLASS}),
+    )
+
+
+class DisciplinaForm(FechaPastoralForm):
+    fecha = forms.DateField(
+        label="Fecha de disciplina",
+        widget=forms.DateInput(attrs={"type": "date", "class": FIELD_CLASS}),
+    )
+
+
+class SuspensionForm(FechaPastoralForm):
+    fecha = forms.DateField(
+        label="Fecha de suspension",
+        widget=forms.DateInput(attrs={"type": "date", "class": FIELD_CLASS}),
     )
 
 

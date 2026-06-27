@@ -89,6 +89,16 @@ solo de esa filial.
   - recalculo del rol del usuario al finalizar una asignacion funcional,
     conservando otro cargo vigente o bajando a solo lectura, incluso si la
     finalizacion se registra desde la edicion general de la asignacion;
+  - flujo formal de autoridades y cargos:
+    nombramiento, posesion, renuncia y reemplazo;
+  - tipos de asignacion titular, interino y suplente;
+  - historial formal de asignaciones con estado anterior/nuevo, fecha, motivo,
+    usuario registrador y asignacion relacionada cuando aplica;
+  - cargos sensibles con control de incompatibilidad de asignaciones nombradas
+    o vigentes;
+  - documentos obligatorios para posesion de cargos sensibles cuando el cargo
+    lo requiere;
+  - auditoria explicita de acciones formales de cargos;
   - documentos adjuntos protegidos por permiso y alcance por iglesia.
 - Modulo Ministerios iniciado:
   - listado en `/ministerios/`;
@@ -140,6 +150,12 @@ solo de esa filial.
     checklist de integracion;
   - matricula asistida en clase existente de Escuela Dominical de la iglesia
     destino desde el checklist de integracion;
+  - traslado familiar completo con integrantes adicionales de la familia origen
+    seleccionados en la solicitud;
+  - al aceptar un traslado familiar se mueven los integrantes adicionales a la
+    iglesia destino y se cierran sus relaciones locales activas en origen;
+  - tareas pastorales posteriores a recepcion en destino, con creacion,
+    completado y auditoria;
   - filtro de integraciones pendientes en el listado;
   - auditoria de revisiones y acciones asistidas de integracion familiar y
     Escuela Dominical;
@@ -249,6 +265,7 @@ solo de esa filial.
   - `Periodo`.
   - `ParametroGeneral`.
   - `Miembro`.
+  - `HistorialPastoralMiembro`.
   - `Familia`.
   - `MiembroFamilia`.
   - `Cargo`.
@@ -402,7 +419,22 @@ Se creo un grupo Django por cada rol inicial:
   sin necesidad de crear otra cuenta ni cambiar el rol principal.
 - Dashboard inicial usa la matriz de permisos para mostrar modulos disponibles por rol.
 - Modulo Miembros iniciado con listado, busqueda, filtro por estado, detalle,
-  creacion, edicion, acciones pastorales iniciales y alcance por iglesia.
+  creacion, edicion, acciones pastorales y alcance por iglesia.
+- Ciclo pastoral ampliado de Miembros:
+  - bautismo con motivo e historial;
+  - admision formal con fecha de membresia;
+  - baja voluntaria;
+  - restauracion;
+  - disciplina;
+  - suspension;
+  - fallecimiento con cierre automatico de relaciones locales activas:
+    vinculos familiares, jefatura familiar, cargos, participaciones
+    ministeriales, matriculas de Escuela Dominical y responsables de
+    ministerio;
+  - historial pastoral por evento con estado anterior/nuevo, activo
+    anterior/nuevo, usuario registrador, motivo y resumen de cierre cuando
+    aplica;
+  - auditoria explicita de acciones pastorales sensibles.
 - Familias integradas al detalle de Miembros:
   - crear familia desde un miembro;
   - vincular miembro a familia existente de la misma iglesia.
@@ -420,7 +452,8 @@ Se creo un grupo Django por cada rol inicial:
 - La matriz funcional inicial de permisos por modulo quedo documentada.
 - Tests de `apps.core` cubren permisos, login y dashboard inicial.
 - Tests de `apps.miembros` cubren acceso, permisos, busqueda, detalle,
-  creacion, edicion, acciones pastorales iniciales y aislamiento por iglesia.
+  creacion, edicion, acciones pastorales iniciales y ampliadas, historial,
+  auditoria, cierre por fallecimiento y aislamiento por iglesia.
 - Tests de familias dentro de Miembros cubren creacion, vinculacion, duplicados,
   permisos y aislamiento por iglesia.
 - Tests de `apps.familias` cubren listado, detalle, creacion, edicion,
@@ -435,7 +468,9 @@ Se creo un grupo Django por cada rol inicial:
   para Ministerios y participaciones ministeriales.
 - Tests de `apps.cargos` cubren listado, detalle, creacion, validaciones,
   finalizacion, sincronizacion y recalculo de roles por asignacion funcional,
-  documentos adjuntos, permisos y aislamiento por iglesia.
+  flujo formal de nombramiento, posesion, renuncia y reemplazo, documentos
+  obligatorios para posesion, documentos adjuntos, permisos y aislamiento por
+  iglesia.
 - API de Cargos/directivas expone cargos y asignaciones en modo consulta,
   protegida por permisos y alcance por iglesia.
 - Tests de `apps.ministerios` cubren listado, detalle, creacion, validaciones,
@@ -451,7 +486,8 @@ Se creo un grupo Django por cada rol inicial:
   aceptacion, rechazo, anulacion, recepcion pastoral en destino, auditoria,
   checklist de integracion en destino, vinculacion familiar asistida, matricula
   asistida de Escuela Dominical, documentos adjuntos y movimiento del miembro,
-  incluyendo cierre de relaciones locales activas en origen.
+  incluyendo cierre de relaciones locales activas en origen, traslado familiar
+  completo y tareas pastorales posteriores a recepcion.
 - Tests de `apps.reportes` cubren reporte inicial de traslados.
 - Tests de `apps.reportes` cubren reporte financiero consolidado, permisos
   nacionales, filtros y totales.
@@ -493,7 +529,19 @@ Se creo un grupo Django por cada rol inicial:
   pagados.
 - Migracion `aportes_nacionales.0005` creada para fecha de vencimiento, pagos
   parciales y acuerdos de pago.
-- Suite completa validada: 243 tests aprobados.
+- Migracion `traslados.0004` creada para traslado familiar y tareas pastorales
+  posteriores a recepcion.
+- Migracion `miembros.0003` creada para nuevos estados pastorales e historial
+  pastoral de miembros.
+- Migracion `cargos.0003` creada para flujo formal de cargos, tipos de
+  asignacion, cargos sensibles e historial formal.
+- Suite completa validada: 298 tests aprobados.
+- Suite focalizada de Cargos validada despues del flujo formal de autoridades
+  y cargos: 25 tests aprobados.
+- Suite focalizada de Miembros validada despues del ciclo pastoral ampliado:
+  33 tests aprobados.
+- Suite focalizada de traslados validada despues de traslado familiar y tareas
+  pastorales posteriores a recepcion: 29 tests aprobados.
 - Suite focalizada de traslados validada despues de recepcion pastoral,
   integracion en destino y acciones asistidas: 25 tests aprobados.
 - Suite focalizada de Certificados, Cargos y Escuela Dominical validada despues
@@ -518,10 +566,6 @@ Siguiente bloque recomendado:
 
 1. Cerrar ciclos administrativos ya iniciados antes de crear modulos grandes
    nuevos:
-   - completar traslado familiar y tareas pastorales posteriores a integracion
-     de traslados;
-   - ciclo pastoral ampliado de miembros;
-   - cambios formales de autoridades y cargos;
    - inventario fisico, actas y aprobaciones de baja.
 2. Reforzar controles preventivos:
    - busqueda de duplicados;

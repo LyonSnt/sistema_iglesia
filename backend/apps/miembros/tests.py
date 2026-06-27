@@ -3,9 +3,14 @@ from datetime import date
 from django.test import TestCase
 from django.urls import reverse
 
+from apps.auditoria.models import RegistroAuditoria
+from apps.cargos.models import AsignacionCargo, Cargo
+from apps.escuela_dominical.models import ClaseEscuelaDominical, MatriculaEscuelaDominical, NivelEscuelaDominical
 from apps.familias.models import Familia, Matrimonio, MiembroFamilia
 from apps.iglesias.models import Iglesia
-from apps.miembros.models import Miembro
+from apps.miembros.models import HistorialPastoralMiembro, Miembro
+from apps.ministerios.models import Ministerio, ParticipacionMinisterio
+from apps.parametros.models import Periodo
 from apps.usuarios.models import Usuario
 
 
@@ -285,25 +290,40 @@ class MiembroDetalleYAccionesPastoralesTests(TestCase):
 
         response = self.client.post(
             reverse("miembros:bautismo", args=[self.miembro_pruebas.pk]),
-            {"fecha": "2026-06-01"},
+            {"fecha": "2026-06-01", "motivo": "Profesion publica de fe."},
         )
 
         self.assertRedirects(response, reverse("miembros:detail", args=[self.miembro_pruebas.pk]))
         self.miembro_pruebas.refresh_from_db()
         self.assertEqual(self.miembro_pruebas.fecha_bautismo, date(2026, 6, 1))
+        historial = HistorialPastoralMiembro.objects.get(miembro=self.miembro_pruebas)
+        self.assertEqual(historial.tipo, HistorialPastoralMiembro.Tipo.BAUTISMO)
+        self.assertEqual(historial.motivo, "Profesion publica de fe.")
+        self.assertTrue(RegistroAuditoria.objects.filter(modulo="miembros", accion="BAUTISMO").exists())
 
-    def test_registrar_membresia_actualiza_fecha(self):
+    def test_registrar_admision_actualiza_fecha_y_activa_miembro(self):
+        self.miembro_pruebas.estado = Miembro.Estado.INACTIVO
+        self.miembro_pruebas.activo = False
+        self.miembro_pruebas.save(update_fields=["estado", "activo"])
         usuario = self.crear_usuario("pastor", Usuario.Rol.PASTOR_FILIAL, self.filial)
         self.client.force_login(usuario)
 
         response = self.client.post(
             reverse("miembros:membresia", args=[self.miembro_pruebas.pk]),
-            {"fecha": "2026-06-02"},
+            {"fecha": "2026-06-02", "motivo": "Recibida como miembro oficial."},
         )
 
         self.assertRedirects(response, reverse("miembros:detail", args=[self.miembro_pruebas.pk]))
         self.miembro_pruebas.refresh_from_db()
         self.assertEqual(self.miembro_pruebas.fecha_membresia, date(2026, 6, 2))
+        self.assertEqual(self.miembro_pruebas.estado, Miembro.Estado.ACTIVO)
+        self.assertTrue(self.miembro_pruebas.activo)
+        self.assertTrue(
+            HistorialPastoralMiembro.objects.filter(
+                miembro=self.miembro_pruebas,
+                tipo=HistorialPastoralMiembro.Tipo.ADMISION,
+            ).exists()
+        )
 
     def test_registrar_fallecimiento_actualiza_fecha_estado_y_activo(self):
         usuario = self.crear_usuario("secretario", Usuario.Rol.SECRETARIO_FILIAL, self.filial)
@@ -311,7 +331,7 @@ class MiembroDetalleYAccionesPastoralesTests(TestCase):
 
         response = self.client.post(
             reverse("miembros:fallecimiento", args=[self.miembro_pruebas.pk]),
-            {"fecha": "2026-06-03"},
+            {"fecha": "2026-06-03", "motivo": "Registro por acta pastoral."},
         )
 
         self.assertRedirects(response, reverse("miembros:detail", args=[self.miembro_pruebas.pk]))
@@ -319,6 +339,145 @@ class MiembroDetalleYAccionesPastoralesTests(TestCase):
         self.assertEqual(self.miembro_pruebas.fecha_fallecimiento, date(2026, 6, 3))
         self.assertEqual(self.miembro_pruebas.estado, Miembro.Estado.FALLECIDO)
         self.assertFalse(self.miembro_pruebas.activo)
+        self.assertTrue(
+            HistorialPastoralMiembro.objects.filter(
+                miembro=self.miembro_pruebas,
+                tipo=HistorialPastoralMiembro.Tipo.FALLECIMIENTO,
+            ).exists()
+        )
+
+    def test_fallecimiento_cierra_relaciones_activas_del_miembro(self):
+        familia = Familia.objects.create(
+            iglesia=self.filial,
+            nombre="Familia Lopez",
+            jefe_hogar=self.miembro_pruebas,
+        )
+        vinculo = MiembroFamilia.objects.create(
+            familia=familia,
+            miembro=self.miembro_pruebas,
+            relacion=MiembroFamilia.Relacion.REPRESENTANTE,
+        )
+        cargo = Cargo.objects.create(nombre="Diacono")
+        asignacion = AsignacionCargo.objects.create(
+            iglesia=self.filial,
+            cargo=cargo,
+            miembro=self.miembro_pruebas,
+            fecha_inicio=date(2026, 1, 1),
+        )
+        ministerio = Ministerio.objects.create(
+            iglesia=self.filial,
+            nombre="Alabanza",
+            responsable=self.miembro_pruebas,
+        )
+        participacion = ParticipacionMinisterio.objects.create(
+            ministerio=ministerio,
+            miembro=self.miembro_pruebas,
+            cargo="Vocalista",
+            fecha_inicio=date(2026, 1, 1),
+        )
+        periodo = Periodo.objects.create(
+            nombre="2026",
+            fecha_inicio=date(2026, 1, 1),
+            fecha_fin=date(2026, 12, 31),
+        )
+        nivel = NivelEscuelaDominical.objects.create(
+            iglesia=self.filial,
+            nombre="Intermedios",
+            edad_minima=10,
+            edad_maxima=12,
+        )
+        clase = ClaseEscuelaDominical.objects.create(
+            iglesia=self.filial,
+            nombre="Intermedios A",
+            nivel=nivel,
+            periodo=periodo,
+        )
+        matricula = MatriculaEscuelaDominical.objects.create(
+            clase=clase,
+            alumno=self.miembro_pruebas,
+            fecha_inscripcion=date(2026, 1, 5),
+        )
+        usuario = self.crear_usuario("pastor_fallecimiento", Usuario.Rol.PASTOR_FILIAL, self.filial)
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("miembros:fallecimiento", args=[self.miembro_pruebas.pk]),
+            {"fecha": "2026-06-03", "motivo": "Fallecimiento confirmado."},
+        )
+
+        self.assertRedirects(response, reverse("miembros:detail", args=[self.miembro_pruebas.pk]))
+        familia.refresh_from_db()
+        vinculo.refresh_from_db()
+        asignacion.refresh_from_db()
+        ministerio.refresh_from_db()
+        participacion.refresh_from_db()
+        matricula.refresh_from_db()
+        self.assertFalse(familia.activo)
+        self.assertFalse(vinculo.activo)
+        self.assertEqual(asignacion.estado, AsignacionCargo.Estado.FINALIZADO)
+        self.assertEqual(asignacion.fecha_fin, date(2026, 6, 3))
+        self.assertIsNone(ministerio.responsable)
+        self.assertEqual(participacion.estado, ParticipacionMinisterio.Estado.FINALIZADO)
+        self.assertFalse(participacion.activo)
+        self.assertEqual(matricula.estado, MatriculaEscuelaDominical.Estado.RETIRADA)
+        self.assertFalse(matricula.activo)
+        historial = HistorialPastoralMiembro.objects.get(
+            miembro=self.miembro_pruebas,
+            tipo=HistorialPastoralMiembro.Tipo.FALLECIMIENTO,
+        )
+        self.assertEqual(historial.resumen_cierre["asignaciones_cargos"], 1)
+        self.assertEqual(historial.resumen_cierre["participaciones_ministerios"], 1)
+        self.assertEqual(historial.resumen_cierre["matriculas_escuela_dominical"], 1)
+
+    def test_registra_baja_restauracion_disciplina_y_suspension(self):
+        usuario = self.crear_usuario("pastor_ciclo", Usuario.Rol.PASTOR_FILIAL, self.filial)
+        self.client.force_login(usuario)
+
+        self.client.post(
+            reverse("miembros:baja_voluntaria", args=[self.miembro_pruebas.pk]),
+            {"fecha": "2026-06-04", "motivo": "Solicitud formal del miembro."},
+        )
+        self.miembro_pruebas.refresh_from_db()
+        self.assertEqual(self.miembro_pruebas.estado, Miembro.Estado.INACTIVO)
+        self.assertFalse(self.miembro_pruebas.activo)
+
+        self.client.post(
+            reverse("miembros:restauracion", args=[self.miembro_pruebas.pk]),
+            {"fecha": "2026-06-05", "motivo": "Restauracion aprobada."},
+        )
+        self.miembro_pruebas.refresh_from_db()
+        self.assertEqual(self.miembro_pruebas.estado, Miembro.Estado.ACTIVO)
+        self.assertTrue(self.miembro_pruebas.activo)
+
+        self.client.post(
+            reverse("miembros:disciplina", args=[self.miembro_pruebas.pk]),
+            {"fecha": "2026-06-06", "motivo": "Proceso pastoral documentado."},
+        )
+        self.miembro_pruebas.refresh_from_db()
+        self.assertEqual(self.miembro_pruebas.estado, Miembro.Estado.DISCIPLINA)
+        self.assertTrue(self.miembro_pruebas.activo)
+
+        self.client.post(
+            reverse("miembros:suspension", args=[self.miembro_pruebas.pk]),
+            {"fecha": "2026-06-07", "motivo": "Suspension temporal aprobada."},
+        )
+        self.miembro_pruebas.refresh_from_db()
+        self.assertEqual(self.miembro_pruebas.estado, Miembro.Estado.SUSPENDIDO)
+        self.assertFalse(self.miembro_pruebas.activo)
+        self.assertEqual(HistorialPastoralMiembro.objects.filter(miembro=self.miembro_pruebas).count(), 4)
+
+    def test_accion_pastoral_requiere_motivo(self):
+        usuario = self.crear_usuario("pastor_motivo", Usuario.Rol.PASTOR_FILIAL, self.filial)
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("miembros:baja_voluntaria", args=[self.miembro_pruebas.pk]),
+            {"fecha": "2026-06-04", "motivo": ""},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("motivo", response.context["form"].errors)
+        self.assertFalse(HistorialPastoralMiembro.objects.exists())
 
     def test_usuario_sin_gestion_no_puede_registrar_accion_pastoral(self):
         usuario = self.crear_usuario("lectura", Usuario.Rol.SOLO_LECTURA, self.filial)
@@ -326,7 +485,7 @@ class MiembroDetalleYAccionesPastoralesTests(TestCase):
 
         response = self.client.post(
             reverse("miembros:bautismo", args=[self.miembro_pruebas.pk]),
-            {"fecha": "2026-06-01"},
+            {"fecha": "2026-06-01", "motivo": "No permitido"},
         )
 
         self.assertEqual(response.status_code, 403)
@@ -337,7 +496,7 @@ class MiembroDetalleYAccionesPastoralesTests(TestCase):
 
         response = self.client.post(
             reverse("miembros:bautismo", args=[self.miembro_otra.pk]),
-            {"fecha": "2026-06-01"},
+            {"fecha": "2026-06-01", "motivo": "No permitido"},
         )
 
         self.assertEqual(response.status_code, 404)

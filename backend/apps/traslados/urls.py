@@ -16,6 +16,12 @@ urlpatterns = [
     path("<int:pk>/integracion/escuela/", views.RevisarIntegracionEscuelaView.as_view(), name="integracion-escuela"),
     path("<int:pk>/integracion/familia/vincular/", views.VincularFamiliaDestinoView.as_view(), name="vincular-familia"),
     path("<int:pk>/integracion/escuela/matricular/", views.MatricularEscuelaDestinoView.as_view(), name="matricular-escuela"),
+    path("<int:pk>/tareas/crear/", views.CrearTareaPastoralTrasladoView.as_view(), name="tarea-create"),
+    path(
+        "<int:pk>/tareas/<int:tarea_pk>/completar/",
+        views.CompletarTareaPastoralTrasladoView.as_view(),
+        name="tarea-completar",
+    ),
     path("<int:pk>/documentos/subir/", views.AdjuntarDocumentoTrasladoView.as_view(), name="document-create"),
     path("<int:pk>/documentos/<int:documento_pk>/", views.DescargarDocumentoTrasladoView.as_view(), name="document-download"),
     path("<int:pk>/documentos/<int:documento_pk>/anular/", views.AnularDocumentoTrasladoView.as_view(), name="document-deactivate"),
